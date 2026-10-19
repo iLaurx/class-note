@@ -76,7 +76,7 @@ test('navegación por teclado y salto al contenido', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
 });
 
-test('recursos locales, navegación offline y sin almacenamiento', async ({ page, context }) => {
+test('recursos locales, navegación offline y base vacía sin mocks', async ({ page, context }) => {
   const externalRequests: string[] = [];
   await page.route('**/*', async (route) => {
     if (new URL(route.request().url()).origin !== 'http://127.0.0.1:1421') {
@@ -87,6 +87,7 @@ test('recursos locales, navegación offline y sin almacenamiento', async ({ page
     }
   });
   await page.goto('/');
+  await expect(page.getByText('Almacenamiento local listo.', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '¡Qué gusto tenerte aquí!' })).toBeVisible();
   await context.setOffline(true);
   for (const [label] of sections) {
@@ -94,10 +95,78 @@ test('recursos locales, navegación offline y sin almacenamiento', async ({ page
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(label);
   }
   expect(externalRequests).toEqual([]);
-  const storage = await page.evaluate(async () => ({
-    local: localStorage.length,
-    session: sessionStorage.length,
-    databases: (await indexedDB.databases()).length,
-  }));
-  expect(storage).toEqual({ local: 0, session: 0, databases: 0 });
+  const storage = await page.evaluate(async () => {
+    const databases = await indexedDB.databases();
+    const counts = await new Promise<Record<string, number>>((resolve, reject) => {
+      const request = indexedDB.open('classnote');
+      request.onerror = () => reject(new Error('No se pudo abrir la base de prueba.'));
+      request.onsuccess = () => {
+        const db = request.result;
+        const names = Array.from(db.objectStoreNames);
+        const transaction = db.transaction(names, 'readonly');
+        const result: Record<string, number> = {};
+        for (const name of names) {
+          const count = transaction.objectStore(name).count();
+          count.onsuccess = () => {
+            result[name] = count.result;
+          };
+        }
+        transaction.oncomplete = () => {
+          db.close();
+          resolve(result);
+        };
+        transaction.onerror = () => {
+          db.close();
+          reject(new Error('No se pudo leer la base de prueba.'));
+        };
+      };
+    });
+    return {
+      local: localStorage.length,
+      session: sessionStorage.length,
+      databases: databases.map((db) => db.name),
+      counts,
+    };
+  });
+  expect(storage.local).toBe(0);
+  expect(storage.session).toBe(0);
+  expect(storage.databases).toEqual(['classnote']);
+  expect(Object.keys(storage.counts).sort()).toEqual(
+    [
+      'schoolYears',
+      'groups',
+      'students',
+      'enrollments',
+      'attendance',
+      'assignments',
+      'submissions',
+      'readingLogs',
+      'studentNotes',
+      'appSettings',
+    ].sort(),
+  );
+  expect(Object.values(storage.counts)).toEqual(Array(10).fill(0));
+});
+
+test('error accesible de apertura y reintento real sin borrar almacenamiento', async ({ page }) => {
+  await page.addInitScript(() => {
+    const open = IDBFactory.prototype.open;
+    let fail = true;
+    IDBFactory.prototype.open = function (...args: Parameters<IDBFactory['open']>) {
+      if (fail) {
+        fail = false;
+        throw new DOMException('Fallo sintético privado', 'SecurityError');
+      }
+      return open.apply(this, args);
+    };
+  });
+  await page.goto('/');
+  await expect(page.getByRole('alert')).toContainText('No se pudo abrir el almacenamiento local.');
+  await expect(page.getByText('Almacenamiento local listo.', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('alert')).not.toContainText('Fallo sintético');
+  const retry = page.getByRole('button', { name: 'Reintentar almacenamiento' });
+  await retry.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Almacenamiento local listo.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
 });
