@@ -7,7 +7,14 @@ import prettier from 'eslint-config-prettier';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
-  globalIgnores(['dist/**', 'node_modules/**', 'src-tauri/target/**', 'src-tauri/gen/**']),
+  globalIgnores([
+    'dist/**',
+    'node_modules/**',
+    'src-tauri/target/**',
+    'src-tauri/gen/**',
+    'test-results/**',
+    'playwright-report/**',
+  ]),
   {
     files: ['**/*.{js,mjs}'],
     extends: [js.configs.recommended],

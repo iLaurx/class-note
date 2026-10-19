@@ -5,10 +5,339 @@
 }
 
 @layer base {
+  html {
+    color: #292e2b;
+    background: #f5f6f2;
+  }
   body {
     margin: 0;
     min-width: 320px;
     background: #f5f6f2;
     font-family: var(--font-sans);
+  }
+  a {
+    text-decoration: none;
+  }
+  :focus-visible {
+    outline: 3px solid #26765b;
+    outline-offset: 4px;
+    border-radius: 5px;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  h2 {
+    font-size: 1.0625rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer components {
+  .app-shell {
+    @apply min-h-screen;
+  }
+  .sidebar {
+    overflow-y: auto;
+    @apply fixed inset-y-0 left-0 flex w-60 flex-col border-r border-stone-200 bg-[#fafbf8] px-5 py-7;
+  }
+  .brand {
+    @apply flex items-center gap-3 text-[23px] font-semibold tracking-tight text-emerald-950;
+  }
+  .brand-mark {
+    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-900 text-white;
+  }
+  .brand-caption {
+    @apply mt-0.5 block text-[9px] font-semibold tracking-[.16em] text-stone-600;
+  }
+  .eyebrow {
+    @apply text-[10px] font-semibold tracking-[.13em] text-stone-600;
+  }
+  .group-context {
+    @apply mt-9 rounded-xl border border-stone-200 bg-white px-4 py-3 text-emerald-950;
+  }
+  .context-link {
+    @apply mt-3 flex items-center justify-between gap-1 border-t border-stone-100 pt-2.5 text-xs font-medium text-emerald-800 hover:underline;
+  }
+  .nav-caption {
+    @apply mb-3 mt-7 px-3;
+  }
+  .navigation {
+    @apply flex flex-col gap-1;
+  }
+  .navigation a {
+    @apply flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-emerald-950;
+  }
+  .navigation a[aria-current='page'] {
+    @apply bg-emerald-900 text-white;
+  }
+  .sidebar-footer {
+    @apply mt-auto px-3 pt-8 text-xs;
+  }
+  .main-content {
+    @apply ml-60 px-8 pb-5 pt-7;
+    max-width: 1600px;
+  }
+  .page-header {
+    @apply flex items-center justify-between gap-4 border-b border-stone-200 pb-5;
+  }
+  .page-header h1 {
+    @apply text-[25px] font-semibold tracking-tight text-stone-900;
+  }
+  .offline-badge {
+    @apply inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-medium text-emerald-900;
+  }
+  .demo-notice {
+    @apply my-5 flex items-center gap-3 text-xs leading-5 text-stone-600;
+  }
+  .demo-tag {
+    @apply inline-block shrink-0 rounded-md border border-stone-300 bg-white/70 px-2 py-1 text-[9px] font-semibold tracking-[.06em] text-stone-600;
+  }
+  .welcome-banner {
+    @apply flex items-center justify-between gap-5 overflow-hidden rounded-2xl border border-[#dbe5db] bg-[#eaf0e7] px-7 py-7;
+  }
+  .welcome-banner .eyebrow {
+    @apply text-emerald-900;
+  }
+  .welcome-banner h2 {
+    @apply mt-3 text-[29px] font-semibold leading-tight tracking-tight text-emerald-950;
+  }
+  .welcome-banner p:not(.eyebrow) {
+    @apply mt-3 text-sm leading-6 text-stone-600;
+  }
+  .welcome-meta {
+    @apply mt-5 flex flex-wrap items-center gap-3 text-xs font-medium text-emerald-950;
+  }
+  .welcome-book {
+    @apply mr-4 shrink-0 -rotate-12 text-[#7c9b82];
+  }
+  .section-heading {
+    @apply mb-4 mt-7 flex flex-wrap items-center justify-between gap-2;
+  }
+  .sample-date {
+    @apply flex flex-wrap items-center gap-1.5 text-[11px] text-stone-600;
+  }
+  .panel {
+    @apply rounded-xl border border-stone-200 bg-white;
+  }
+  .stats-grid {
+    @apply grid grid-cols-3 gap-4;
+  }
+  .stat-card {
+    @apply px-5 pb-4 pt-5;
+  }
+  .stat-label {
+    @apply flex items-center justify-between gap-2 text-xs font-medium text-stone-600;
+  }
+  .stat-label svg {
+    @apply text-emerald-800;
+  }
+  .stat-number {
+    @apply mt-3 block text-[34px] font-semibold leading-tight tracking-tight text-stone-900;
+  }
+  .stat-denominator {
+    @apply text-lg font-normal text-stone-500;
+  }
+  .stat-card p {
+    @apply mt-2 text-[11px] leading-5 text-stone-600;
+  }
+  .stat-card a {
+    @apply mt-4 flex items-center justify-between border-t border-stone-100 pt-3 text-xs font-medium text-emerald-800 hover:underline;
+  }
+  .attendance-badge {
+    @apply rounded-md bg-emerald-50 px-1.5 py-1 text-[10px] font-semibold text-emerald-800;
+  }
+  .quick-grid {
+    @apply grid grid-cols-4 gap-3;
+  }
+  .quick-link {
+    @apply flex items-center gap-2.5 rounded-xl border border-stone-200 bg-white p-3 text-xs font-medium hover:border-emerald-700 hover:bg-emerald-50;
+  }
+  .icon-tile {
+    @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#edf2e9] text-emerald-900;
+  }
+  .dashboard-bottom {
+    @apply mt-6 grid grid-cols-[1.6fr_1fr] gap-5;
+  }
+  .assignments-panel {
+    @apply px-5 pb-2 pt-5;
+  }
+  .assignments-panel .section-heading {
+    @apply mt-0 mb-2;
+  }
+  .text-link {
+    @apply inline-flex items-center gap-2 text-xs font-semibold text-emerald-800 hover:underline;
+  }
+  .assignment-list li {
+    @apply flex items-center gap-3 border-t border-stone-100 py-4;
+  }
+  .assignment-list h3 {
+    @apply text-xs font-medium leading-5;
+  }
+  .assignment-list p {
+    @apply mt-0.5 text-[11px] text-stone-600;
+  }
+  .subject-dot {
+    @apply h-2 w-2 shrink-0 rounded-full;
+  }
+  .subject-amber {
+    @apply bg-amber-600;
+  }
+  .subject-green {
+    @apply bg-emerald-700;
+  }
+  .subject-blue {
+    @apply bg-sky-700;
+  }
+  .due-label {
+    @apply ml-auto shrink-0 text-[10px] text-stone-600;
+  }
+  .reading-card {
+    @apply rounded-xl border border-[#e1e2d2] bg-[#f0f0e4] p-5;
+  }
+  .reading-card .icon-tile {
+    @apply bg-white/70;
+  }
+  .reading-card h2 {
+    @apply mt-2 text-[23px] text-emerald-950;
+  }
+  .reading-card > p:not(.eyebrow) {
+    @apply mb-5 mt-3 max-w-64 text-xs leading-6 text-stone-600;
+  }
+  .section-intro {
+    @apply mb-6 text-sm text-stone-600;
+  }
+  .placeholder {
+    @apply flex min-h-[430px] flex-col items-center justify-center gap-5 px-6 py-12 text-center;
+  }
+  .placeholder-icon {
+    @apply flex h-20 w-20 items-center justify-center rounded-2xl bg-[#edf2e9] text-emerald-900;
+  }
+  .placeholder h2 {
+    @apply text-2xl;
+  }
+  .placeholder p {
+    @apply max-w-md text-sm leading-6 text-stone-600;
+  }
+  .button-primary {
+    @apply mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-900 px-4 py-3 text-xs font-medium text-white hover:bg-emerald-800;
+  }
+  .page-footer {
+    @apply mt-8 flex flex-wrap justify-between gap-2 border-t border-stone-200 pt-4 text-[10px] leading-5 text-stone-600;
+  }
+  .skip-link {
+    @apply fixed -top-20 left-4 z-50 rounded-lg bg-emerald-950 px-5 py-3 text-white focus:top-4;
+  }
+}
+
+@media (min-width: 1400px) {
+  .main-content {
+    padding-inline: 48px;
+  }
+}
+@media (max-width: 1150px) {
+  .quick-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dashboard-bottom {
+    grid-template-columns: 1fr;
+  }
+  .reading-card {
+    display: none;
+  }
+}
+@media (max-width: 900px) {
+  .sidebar {
+    position: static;
+    width: auto;
+    padding: 20px 24px 12px;
+    border-right: 0;
+    border-bottom: 1px solid #e7e5e4;
+  }
+  .group-context,
+  .nav-caption,
+  .sidebar-footer {
+    display: none;
+  }
+  .brand {
+    font-size: 21px;
+  }
+  .navigation {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 18px;
+  }
+  .navigation a {
+    padding: 10px;
+    font-size: 12px;
+    gap: 8px;
+  }
+  .main-content {
+    margin-left: 0;
+    padding: 24px;
+  }
+}
+@media (max-width: 580px) {
+  .sidebar {
+    padding: 16px;
+  }
+  .navigation {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .main-content {
+    padding: 20px 16px;
+  }
+  .page-header {
+    align-items: flex-start;
+  }
+  .offline-badge {
+    max-width: 150px;
+    font-size: 10px;
+  }
+  .demo-notice {
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .welcome-banner {
+    padding: 22px;
+  }
+  .welcome-banner h2 {
+    font-size: 26px;
+  }
+  .welcome-book {
+    display: none;
+  }
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .quick-grid {
+    grid-template-columns: 1fr;
+  }
+  .due-label {
+    max-width: 65px;
+    white-space: normal;
+    text-align: right;
+  }
+}
+@media (max-height: 740px) and (min-width: 901px) {
+  .sidebar {
+    overflow-y: auto;
+  }
+  .group-context {
+    margin-top: 22px;
+  }
+  .sidebar-footer {
+    padding-top: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
   }
 }

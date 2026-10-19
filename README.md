@@ -2,7 +2,8 @@
 
 Agenda escolar de escritorio para docentes de primaria, diseñada para funcionar sin conexión.
 
-**Estado: etapa 01 / CN-001.** Esta versión abre una pantalla de bienvenida en español.
+**Estado: etapa 02 / CN-001A.** App Shell en español con ocho secciones, navegación
+adaptable y dashboard de demostración con datos ficticios centralizados.
 Todavía no registra alumnos, asistencias, tareas ni otros datos. No hay base de datos,
 cuentas, servidor de producción, sincronización ni servicios externos.
 
@@ -57,24 +58,26 @@ El servidor Vite se usa para desarrollo y no forma parte de la app distribuida.
 
 ## Comandos
 
-| Comando             | Función                                                        |
-| ------------------- | -------------------------------------------------------------- |
-| `pnpm typecheck`    | TypeScript estricto sin emitir archivos                        |
-| `pnpm lint`         | ESLint sin advertencias                                        |
-| `pnpm format:check` | Comprobar Prettier                                             |
-| `pnpm format`       | Aplicar formato                                                |
-| `pnpm test`         | Compilar y ejecutar dos comprobaciones de distribución offline |
-| `pnpm build`        | Compilar frontend en dist/                                     |
-| `pnpm preview`      | Revisar el frontend compilado en un servidor local             |
-| `pnpm check`        | Lint, formato, tipos, build y pruebas                          |
-| `pnpm tauri:dev`    | Desarrollo en ventana Tauri                                    |
-| `pnpm tauri:build`  | Ejecutable Windows e instalador NSIS                           |
-| `pnpm tauri info`   | Diagnóstico del entorno                                        |
+| Comando             | Función                                                                |
+| ------------------- | ---------------------------------------------------------------------- |
+| `pnpm typecheck`    | TypeScript estricto sin emitir archivos                                |
+| `pnpm lint`         | ESLint sin advertencias                                                |
+| `pnpm format:check` | Comprobar Prettier                                                     |
+| `pnpm format`       | Aplicar formato                                                        |
+| `pnpm test`         | Compilar, comprobar distribución offline y probar la interfaz con Edge |
+| `pnpm test:ui`      | Compilar y ejecutar seis pruebas de interfaz con Edge instalado        |
+| `pnpm build`        | Compilar frontend en dist/                                             |
+| `pnpm preview`      | Revisar el frontend compilado en un servidor local                     |
+| `pnpm check`        | Lint, formato, tipos, build y pruebas                                  |
+| `pnpm tauri:dev`    | Desarrollo en ventana Tauri                                            |
+| `pnpm tauri:build`  | Ejecutable Windows e instalador NSIS                                   |
+| `pnpm tauri info`   | Diagnóstico del entorno                                                |
 
-Las pruebas usan el runner de Node sin otro framework: revisan recursos locales,
-CSP de producción y ausencia de capabilities nativas. No sustituyen pruebas reales
-del instalador, accesibilidad o tráfico en WebView2. Vitest/Testing Library y CI
-corresponden a CN-002.
+Las comprobaciones de distribución usan el runner de Node: recursos locales, CSP
+y ausencia de capabilities nativas. Playwright usa Microsoft Edge instalado para
+probar navegación, teclado, ventanas estrechas y navegación sin red después de cargar
+los recursos. No descarga navegadores. No sustituye pruebas del instalador o de
+WebView2. Vitest/Testing Library y CI siguen pendientes en CN-002.
 
 Formato de Rust:
 
@@ -103,9 +106,11 @@ o WebView2 puedan generar por su cuenta.
 
 ```text
 src/
-  app/                    # Composición y estilos
-  features/welcome/       # Pantalla inicial
-  components/ui/         # Componentes compartidos futuros
+  app/                   # Shell, navegación hash, estilos e icono local
+  features/dashboard/    # Dashboard y mocks sin persistencia
+  features/ModulePlaceholder.tsx # Vista compartida por módulos pendientes
+  components/layout/     # Sidebar y encabezado
+  components/ui/         # Acceso rápido reutilizable
   domain/                # Reglas y tipos futuros
   db/                    # Reservado; sin tablas ni Dexie
   services/              # Servicios futuros
@@ -118,7 +123,10 @@ src-tauri/
   build.rs
   tauri.conf.json
 tests/offline-build.test.mjs
+tests/ui/navigation.spec.ts
+playwright.config.ts
 docs/BOOTSTRAP.md
+docs/APP_SHELL.md
 index.html
 package.json
 pnpm-lock.yaml
@@ -142,7 +150,8 @@ Identificador Tauri: `org.classnote.desktop`, identidad técnica sin afirmar pro
 de un dominio. Revisar antes de distribuir públicamente y conservar entre versiones
 para evitar cambios accidentales de identidad y perfil de datos.
 
-Runtime npm: React y React DOM. Runtime nativo: Tauri 2 sin plugins.
+Runtime npm: React, React DOM y Lucide React (iconos SVG locales).
+Runtime nativo: Tauri 2 sin plugins. Playwright es solo una herramienta de pruebas.
 Herramientas: TypeScript, Vite, plugin React, Tailwind y plugin Vite, CLI de Tauri,
 ESLint, typescript-eslint, plugins React Hooks/Refresh, globals,
 eslint-config-prettier, Prettier y tipos Node/React.
@@ -160,6 +169,7 @@ todavía no se instalan. No hay cambios de schema ni migraciones.
 - [Roadmap](ROADMAP.md) y [plan de pruebas](TESTING.md).
 - [Seguridad](SECURITY.md) y [contribución](CONTRIBUTING.md).
 - [Validaciones y supuestos de esta etapa](docs/BOOTSTRAP.md).
+- [App Shell, decisiones y validaciones de etapa 02](docs/APP_SHELL.md).
 - `AGENTS.md`, `MVP.md` y `TASKS.md` son documentos locales de planeación que el
   .gitignore existente excluye; pueden no existir en un clon nuevo.
 

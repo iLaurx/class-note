@@ -11,5 +11,5 @@ export default defineConfig({
     strictPort: true,
     watch: { ignored: ['**/src-tauri/**'] },
   },
-  build: { target: 'es2022' },
+  build: { target: 'es2022', assetsInlineLimit: 0 },
 });
