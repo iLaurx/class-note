@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
 import { StorageProvider } from './app/StorageProvider';
+import { WorkContextProvider } from './app/WorkContextProvider';
 import './app/styles.css';
 
 const root = document.getElementById('root');
@@ -13,7 +14,9 @@ if (!root) {
 createRoot(root).render(
   <StrictMode>
     <StorageProvider>
-      <App />
+      <WorkContextProvider>
+        <App />
+      </WorkContextProvider>
     </StorageProvider>
   </StrictMode>,
 );

@@ -30,7 +30,11 @@ for (const width of [1100, 768, 360]) {
       await expect(link).toHaveAttribute('aria-current', 'page');
       await expect(page.locator('[aria-current="page"]')).toHaveCount(1);
       if (label !== 'Inicio') {
-        await expect(page.getByText('EN PREPARACIÓN', { exact: true })).toBeVisible();
+        if (label === 'Configuración')
+          await expect(
+            page.getByRole('heading', { name: 'Ciclos escolares y grupos' }),
+          ).toBeVisible();
+        else await expect(page.getByText('EN PREPARACIÓN', { exact: true })).toBeVisible();
         await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
       }
       expect(
@@ -65,6 +69,7 @@ test('accesos rápidos, historial, enlace directo y sección desconocida', async
 
 test('navegación por teclado y salto al contenido', async ({ page }) => {
   await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Inicio');
   await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'Saltar al contenido' })).toBeFocused();
   await page.keyboard.press('Enter');

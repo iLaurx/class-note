@@ -8,6 +8,11 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { build } from 'vite';
 import { chromium } from '@playwright/test';
+import {
+  createYearsAndGroups,
+  verifySelection,
+  verifyArchiveFlow,
+} from '../helpers/school-flow.ts';
 
 const exec = promisify(execFile);
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -145,8 +150,11 @@ try {
   const empty = await first.evaluate('ClassNoteProbe.snapshot()');
   assert.equal(Object.keys(empty).length, 10);
   assert.ok(Object.values(empty).every((rows) => rows.length === 0));
-  before = await first.evaluate('ClassNoteProbe.seed()');
-  assert.ok(Object.values(before).every((rows) => rows.length === 1));
+  const seeded = await first.evaluate('ClassNoteProbe.seed()');
+  assert.ok(Object.values(seeded).every((rows) => rows.length === 1));
+  await createYearsAndGroups(first.page);
+  await verifySelection(first.page);
+  before = await first.evaluate('ClassNoteProbe.snapshot()');
   await first.page.screenshot({ path: path.join(output, 'first-launch.png') });
   assert.deepEqual(first.requests, []);
 } finally {
@@ -159,7 +167,20 @@ try {
   assert.deepEqual(after, before, 'Todos los valores, UUID y relaciones deben conservarse.');
   // A second offline write/read proves the reopened store remains writable.
   const result = await second.evaluate('ClassNoteProbe.writeAfterRestart()');
-  assert.equal(result.appSettings.length, 2);
+  assert.equal(result.appSettings.length, 4);
+  await verifySelection(second.page);
+  await verifyArchiveFlow(second.page);
+  const archived = await second.evaluate('ClassNoteProbe.snapshot()');
+  for (const table of [
+    'students',
+    'enrollments',
+    'attendance',
+    'assignments',
+    'submissions',
+    'readingLogs',
+    'studentNotes',
+  ])
+    assert.deepEqual(archived[table], before[table]);
   for (const label of [
     'Alumnos',
     'Asistencia',
@@ -189,10 +210,16 @@ try {
         secondPid: second.pid,
         origin: new URL(second.page.url()).origin,
         offline: true,
-        domainRecordsBefore: 9,
+        domainRecordsBefore: Object.entries(before)
+          .filter(([name]) => name !== 'appSettings')
+          .reduce((total, [, rows]) => total + rows.length, 0),
         preservedTables: Object.keys(before),
         exactSnapshotPreserved: true,
         offlineWriteAfterRestart: true,
+        uiCreatedYears: 2,
+        uiCreatedGroups: 4,
+        uiSelectionAndEditPreserved: true,
+        archiveReactivationPreservedRelations: true,
         externalPageRequests: second.requests,
         checkedAt: new Date().toISOString(),
         limits:

@@ -32,3 +32,11 @@
 - Licencia MIT vs otra, antes de publicar.
 - Políticas exactas de métricas de asistencia y faltas justificadas.
 - Experiencia de desinstalación y preservación de datos.
+
+## ADR-007 — Contexto de trabajo y archivo (CN-004)
+
+- Provider pequeño sobre StorageProvider y repositorios explícitos; una instantánea transaccional contiene ciclos, grupos y selección. Las operaciones UI se serializan con bloqueo inmediato y controles deshabilitados durante carga/escritura. No se lanzan consultas independientes por ciclo que puedan resolver fuera de orden.
+- Configuración mantiene su propio ciclo de consulta; no altera la selección global. Los consumidores reciben schoolYearId/groupId explícitos y los repositorios no consultan silenciosamente preferencias.
+- appSettings usa dos claves escalares: work.schoolYearId y work.groupId (UUID o null). Sin preferencias iniciales, ni localStorage/sessionStorage, ni cambios de esquema/dependencias.
+- Archivo y saneamiento de selección comparten transacción. Un ciclo archivado no modifica archived de sus grupos. Reactivar nunca selecciona automáticamente un registro. Registros archivados se consultan pero requieren reactivación antes de editar.
+- Ediciones conservan UUID/createdAt; guardar sin cambios conserva updatedAt. Cambiar propietario de grupo se rechaza. Reducir fechas verifica matrículas y asistencias dentro de la escritura transaccional; no se añaden restricciones temporales a los demás módulos.

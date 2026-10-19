@@ -57,3 +57,18 @@ Los tipos están definidos y las referencias se validan en repositorios dentro d
 - Testear apertura de base anterior, migración y conservación de datos, sin recrearla.
 - No modificar el tipo/semántica de un campo sin conversión documentada.
 - CN-003 introduce la primera versión; no hay v0 ni migración ficticia. Se prueba reapertura v1 con datos relacionados y conservación exacta de valores/IDs. Un cambio futuro conserva la declaración v1, añade una versión mayor y prueba la migración desde v1 poblada antes de publicarse.
+
+## CN-004: preferencias y modificaciones sin migración
+
+Se conserva Dexie v1 y todos sus índices. appSettings incorpora, solo tras acción del usuario o saneamiento de una referencia guardada inválida:
+
+| Clave | Valor |
+|---|---|
+| work.schoolYearId | UUID string de ciclo activo o null |
+| work.groupId | UUID string de grupo activo del ciclo seleccionado o null |
+
+Ambas claves se guardan atómicamente. Un perfil sin acciones mantiene las diez tablas vacías. Al abrir se descartan referencias inexistentes, archivadas, no escalares válidas o incompatibles; se conserva el ciclo válido cuando solo falla el grupo. No se elige reemplazo.
+
+Actualización explícita de ciclos y grupos: entrada unknown, unicidad comprobada en aplicación más índices únicos de v1, UUID/createdAt inmutables. updatedAt cambia solo si hay cambios persistidos. No se edita un archivado ni un grupo de ciclo archivado. El ciclo propietario del grupo es inmutable. Turno continúa fuera de la identidad; no se normalizan mayúsculas/acentos.
+
+Las fechas nuevas del ciclo deben contener joinedAt, leftAt y las asistencias de sus matrículas, incluidos grupos archivados. Comprobación y escritura comparten transacción. No se recorta, elimina ni reasigna historia. Archivo conserva todas las relaciones y no cambia estados individuales de grupos al archivar su ciclo. Archivo del contexto seleccionado sanea las preferencias en la misma transacción.
