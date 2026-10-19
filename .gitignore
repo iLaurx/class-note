@@ -6,6 +6,9 @@ dist/
 dist-ssr/
 build/
 src-tauri/target/
+src-tauri/gen/
+coverage/
+.pnpm-store/
 
 # Variables de entorno privadas
 .env
@@ -27,6 +30,12 @@ pnpm-debug.log*
 /backups/
 /exports/
 /data/
+*.pfx
+*.p12
+*.pem
+*.key
+/profiles/
+/webview-data/
 
 # Sistema operativo
 .DS_Store
