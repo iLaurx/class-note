@@ -14,16 +14,19 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "pnpm build && node --test tests/*.test.mjs && playwright test",
+    "test": "pnpm build && pnpm test:db && node --test tests/*.test.mjs && playwright test",
     "test:ui": "pnpm build && playwright test",
     "build": "pnpm typecheck && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "check": "pnpm lint && pnpm format:check && pnpm test"
+    "check": "pnpm lint && pnpm format:check && pnpm test",
+    "test:db": "node --experimental-strip-types --test tests/db/*.test.ts",
+    "test:native": "node tests/native/persistence.mjs"
   },
   "dependencies": {
+    "dexie": "^4.4.6",
     "lucide-react": "^1.59.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
@@ -41,6 +44,7 @@
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-react-hooks": "^7.0.0",
     "eslint-plugin-react-refresh": "^0.4.24",
+    "fake-indexeddb": "^6.2.6",
     "globals": "^17.0.0",
     "prettier": "^3.0.0",
     "tailwindcss": "^4.3.3",

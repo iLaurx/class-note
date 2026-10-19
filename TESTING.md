@@ -30,7 +30,9 @@ Después de CN-001/CN-001A:
 - `pnpm typecheck`: TypeScript estricto, incluida la configuración y las pruebas UI.
 - `pnpm lint` y `pnpm format:check`: ESLint y Prettier.
 - `pnpm build`: frontend distribuible.
-- `pnpm test`: build, dos comprobaciones de distribución con Node y seis tests UI.
+- `pnpm test`: build, doce pruebas de dominio/persistencia con Node, dos comprobaciones de distribución y siete tests UI.
+- `pnpm test:db`: doce pruebas TypeScript con Node Test Runner y fake-indexeddb. Requiere Node 24 o compatible con `--experimental-strip-types`; no descarga runner ni navegador.
+- `pnpm test:native`: ejecutable release real, WebView2 con perfil aislado y CDP local, escritura/lectura offline, cierre completo y reapertura. Requiere `pnpm tauri:build` previo; no inicia Vite ni instala ClassNote. Véase [PERSISTENCE.md](docs/PERSISTENCE.md).
 - `pnpm test:ui`: build y tests UI con Playwright / Edge instalado, sin descargar navegadores.
 - `pnpm tauri:dev`: compilación y arranque nativo.
 
@@ -41,8 +43,37 @@ Edge; el sandbox puede bloquearlos. Los resultados y capturas van en `test-resul
 historial, enlaces directos, ruta desconocida, accesos rápidos, foco y teclado.
 Se revisan errores de consola y de ejecución en las tres resoluciones.
 
-La prueba offline carga recursos locales, corta la red del contexto y recorre todas
-las secciones; comprueba cero peticiones externas y cero almacenamiento. No demuestra
-primer arranque nativo sin internet ni tráfico del sistema operativo. La persistencia
-no aplica a etapa 02: todos los datos son mocks. Ver resultados en
-[APP_SHELL.md](docs/APP_SHELL.md).
+La prueba offline carga recursos locales, espera apertura correcta de `classnote`,
+corta la red del contexto y recorre las ocho secciones. Comprueba diez stores vacías,
+ningún mock persistido, ausencia de localStorage/sessionStorage y cero peticiones
+externas. Otra prueba provoca un error de IndexedDB y acciona reintento por teclado.
+Se mantienen tamaños, foco, historial y enlaces. Las evidencias de etapa 02 en
+[APP_SHELL.md](docs/APP_SHELL.md) son históricas: CN-003 sí abre IndexedDB.
+
+## Casos y resultados CN-003
+
+El 19 de octubre de 2026 se ejecutaron correctamente `pnpm lint`, `pnpm format:check`,
+`pnpm typecheck`, `pnpm test` (12 + 2 + 7 aprobadas), `pnpm build`, `pnpm tauri:build`
+y `pnpm test:native`. Este último se ejecutó contra WebView2, no Edge independiente.
+
+Cobertura DB: apertura vacía de diez stores, inicialización repetida/carga, altas y
+consultas de todas las entidades, reapertura v1 con igualdad de valores/IDs, cinco
+índices únicos, referencias inexistentes, entregas cruzadas, aislamiento entre dos
+ciclos/grupos, fechas reales, grados/minutos/estados/categorías/campos requeridos,
+extremos inclusivos de asistencia, varias lecturas por día, concurrencia, rollback
+ante duplicado/fallo de validación a mitad de lote, error y reintento sin pérdida.
+Las bases simuladas tienen nombre UUID por prueba y se eliminan solo en tests.
+
+El primer `pnpm test` restringido quedó sin responder al servidor local y se canceló;
+se repitió con acceso autorizado y pasó. El primer empaquetado compiló release pero
+falló al descargar NSIS (`Host desconocido`, error 11001); el reintento autorizado
+generó el instalador. Solo hubo advertencias de NO_COLOR/FORCE_COLOR en la suite UI.
+
+La primera comprobación de formato marcó catorce archivos existentes solo por CRLF.
+Se confirmó que su contenido ya tenía el formato correcto y se configuró Prettier
+con `endOfLine: auto` para respetar los finales de línea de Windows sin reescribirlos.
+
+La prueba nativa conserva datos tras cerrar el proceso y reapertura en el mismo perfil,
+incluida escritura offline posterior y navegación. No cubre primer arranque sin red,
+tráfico global de Windows, reinicio del equipo, instalación, actualización, desinstalación
+ni respaldo/restauración. Esos criterios manuales y CN-013 siguen pendientes.

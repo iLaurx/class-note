@@ -4,6 +4,7 @@ import { Sidebar } from '../components/layout/Sidebar';
 import { Dashboard } from '../features/dashboard/Dashboard';
 import { ModulePlaceholder } from '../features/ModulePlaceholder';
 import { useNavigation } from './useNavigation';
+import { StorageNotice } from './StorageNotice';
 
 export function App() {
   const current = useNavigation();
@@ -36,8 +37,9 @@ export function App() {
         <Header current={current} />
         <div className="demo-notice">
           <span className="demo-tag">DEMOSTRACIÓN</span>
-          <p>Todos los datos son ficticios. Esta versión no guarda información.</p>
+          <p>Todos los datos son ficticios. La demostración no se guarda en la base local.</p>
         </div>
+        <StorageNotice />
         {current?.id === 'home' ? <Dashboard /> : <ModulePlaceholder section={current} />}
         <footer className="page-footer">
           Hecho para el día a día de tu aula.
