@@ -25,4 +25,24 @@
 - [ ] Revisar comportamiento de desinstalación y limpieza de datos WebView2; documentar riesgos.
 
 ## Comandos
-Se documentarán los comandos efectivos después de `CN-001`/`CN-002`. No inventar reportes de ejecución antes de la inicialización.
+Después de CN-001/CN-001A:
+
+- `pnpm typecheck`: TypeScript estricto, incluida la configuración y las pruebas UI.
+- `pnpm lint` y `pnpm format:check`: ESLint y Prettier.
+- `pnpm build`: frontend distribuible.
+- `pnpm test`: build, dos comprobaciones de distribución con Node y seis tests UI.
+- `pnpm test:ui`: build y tests UI con Playwright / Edge instalado, sin descargar navegadores.
+- `pnpm tauri:dev`: compilación y arranque nativo.
+
+Las pruebas UI levantan su propio preview de producción en `127.0.0.1:1421`,
+sin reutilizar servidores existentes. Requieren sockets locales y permiso de iniciar
+Edge; el sandbox puede bloquearlos. Los resultados y capturas van en `test-results/`
+(excluido de Git). Las ocho secciones se prueban a 1100, 768 y 360 px, además de
+historial, enlaces directos, ruta desconocida, accesos rápidos, foco y teclado.
+Se revisan errores de consola y de ejecución en las tres resoluciones.
+
+La prueba offline carga recursos locales, corta la red del contexto y recorre todas
+las secciones; comprueba cero peticiones externas y cero almacenamiento. No demuestra
+primer arranque nativo sin internet ni tráfico del sistema operativo. La persistencia
+no aplica a etapa 02: todos los datos son mocks. Ver resultados en
+[APP_SHELL.md](docs/APP_SHELL.md).
