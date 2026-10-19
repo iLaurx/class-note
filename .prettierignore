@@ -1,0 +1,17 @@
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/
+src-tauri/icons/
+pnpm-lock.yaml
+Cargo.lock
+AGENTS.md
+MVP.md
+TASKS.md
+ARCHITECTURE.md
+CONTRIBUTING.md
+DATA_MODEL.md
+DECISIONS.md
+ROADMAP.md
+SECURITY.md
+TESTING.md
