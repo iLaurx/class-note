@@ -317,7 +317,12 @@ export class Repositories {
       const { year, group } = await this.group(context);
       const data = record(input);
       const studentId = uuid(data.studentId);
-      requireRule(await this.db.students.get(studentId), 'El alumno no existe.');
+      requireRule(
+        !year.archived && !group.archived,
+        'Reactiva el ciclo y el grupo antes de matricular.',
+      );
+      const student = await this.db.students.get(studentId);
+      requireRule(student?.active, 'El alumno debe estar activo para matricular.');
       const joinedAt = schoolDate(data.joinedAt);
       const leftAt = data.leftAt === undefined ? undefined : schoolDate(data.leftAt);
       requireRule(
@@ -344,6 +349,129 @@ export class Repositories {
       const { group } = await this.group(context);
       return this.db.enrollments.where('groupId').equals(group.id).toArray();
     });
+  }
+
+  createStudentWithEnrollment(context: GroupContext, input: unknown) {
+    return this.write(async () => {
+      const data = record(input);
+      const student = await this.createStudent({
+        firstName: data.firstName,
+        lastName: data.lastName,
+      });
+      const enrollment = await this.createEnrollment(context, {
+        studentId: student.id,
+        joinedAt: data.joinedAt,
+        status: 'active',
+      });
+      return { student, enrollment };
+    });
+  }
+
+  updateStudent(id: string, input: unknown) {
+    return this.write(async () => {
+      const previous = await this.db.students.get(uuid(id));
+      requireRule(previous, 'El alumno no existe.');
+      const data = record(input);
+      const value = {
+        ...previous,
+        firstName: text(data.firstName, 'Nombre'),
+        lastName: text(data.lastName, 'Apellidos'),
+        updatedAt: new Date().toISOString(),
+      };
+      await this.db.students.put(value);
+      return value;
+    });
+  }
+
+  setStudentActive(id: string, active: unknown) {
+    return this.write(async () => {
+      const previous = await this.db.students.get(uuid(id));
+      requireRule(previous, 'El alumno no existe.');
+      const enabled = flag(active, true);
+      const updatedAt = new Date().toISOString();
+      if (!enabled) {
+        const enrollments = await this.db.enrollments
+          .where('studentId')
+          .equals(previous.id)
+          .toArray();
+        for (const item of enrollments) {
+          if (item.status === 'active')
+            await this.db.enrollments.put({ ...item, status: 'inactive', updatedAt });
+        }
+      }
+      await this.db.students.put({ ...previous, active: enabled, updatedAt });
+    });
+  }
+
+  updateEnrollment(context: EnrollmentContext, input: unknown) {
+    return this.write(async () => {
+      const { year, group, enrollment } = await this.enrollment(context);
+      const data = record(input);
+      requireRule(
+        (data.studentId === undefined || data.studentId === enrollment.studentId) &&
+          (data.groupId === undefined || data.groupId === enrollment.groupId),
+        'La identidad de la matrícula no se puede cambiar. Crea otra matrícula.',
+      );
+      const status = choice(data.status, ['active', 'inactive'] as const, 'Estado de matrícula');
+      if (status === 'active') {
+        const student = await this.db.students.get(enrollment.studentId);
+        requireRule(
+          student?.active && !year.archived && !group.archived,
+          'Reactiva alumno, ciclo y grupo antes de activar la matrícula.',
+        );
+      }
+      const joinedAt = schoolDate(data.joinedAt);
+      const leftAt = data.leftAt === undefined ? undefined : schoolDate(data.leftAt);
+      requireRule(
+        joinedAt >= year.startDate &&
+          joinedAt <= year.endDate &&
+          (leftAt === undefined || (leftAt >= joinedAt && leftAt <= year.endDate)),
+        'Las fechas de matrícula deben estar ordenadas y dentro del ciclo.',
+      );
+      const attendance = await this.db.attendance
+        .where('enrollmentId')
+        .equals(enrollment.id)
+        .toArray();
+      requireRule(
+        attendance.every(
+          (item) => item.date >= joinedAt && (leftAt === undefined || item.date <= leftAt),
+        ),
+        'El intervalo dejaría asistencias fuera de la matrícula. Conserva sus fechas.',
+      );
+      const value = {
+        ...enrollment,
+        joinedAt,
+        leftAt,
+        status,
+        updatedAt: new Date().toISOString(),
+      };
+      await this.db.enrollments.put(value);
+      return value;
+    });
+  }
+
+  listGroupStudents(context: GroupContext) {
+    return this.read(async () => {
+      const { group } = await this.group(context);
+      const enrollments = await this.db.enrollments.where('groupId').equals(group.id).toArray();
+      return Promise.all(
+        enrollments.map(async (enrollment) => {
+          const student = await this.db.students.get(enrollment.studentId);
+          requireRule(student, 'No se pudo resolver la ficha del alumno.');
+          return { student, enrollment };
+        }),
+      );
+    });
+  }
+
+  // Global records are read only in an explicit enrollment/history flow.
+  listStudentRecords() {
+    return this.read(async () => ({
+      students: await this.db.students.toArray(),
+      enrollments: await this.db.enrollments.toArray(),
+      groups: await this.db.groups.toArray(),
+      years: await this.db.schoolYears.toArray(),
+    }));
   }
 
   createAttendance(context: EnrollmentContext, input: unknown) {
