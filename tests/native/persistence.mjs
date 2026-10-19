@@ -1,3 +1,4 @@
+import { createStudentHistory, verifyStudentHistory } from '../helpers/student-flow.ts';
 import assert from 'node:assert/strict';
 import { spawn, execFile } from 'node:child_process';
 import { once } from 'node:events';
@@ -154,7 +155,14 @@ try {
   assert.ok(Object.values(seeded).every((rows) => rows.length === 1));
   await createYearsAndGroups(first.page);
   await verifySelection(first.page);
+  await createStudentHistory(first.page);
   before = await first.evaluate('ClassNoteProbe.snapshot()');
+  const student = before.students.find((s) => s.firstName === 'Ána editada');
+  assert.ok(student);
+  const history = before.enrollments.filter((e) => e.studentId === student.id);
+  assert.equal(history.length, 2);
+  assert.equal(history.filter((e) => e.status === 'active').length, 1);
+  assert.equal(before.students.filter((s) => s.firstName === 'Ána editada').length, 1);
   await first.page.screenshot({ path: path.join(output, 'first-launch.png') });
   assert.deepEqual(first.requests, []);
 } finally {
@@ -169,6 +177,11 @@ try {
   const result = await second.evaluate('ClassNoteProbe.writeAfterRestart()');
   assert.equal(result.appSettings.length, 4);
   await verifySelection(second.page);
+  await verifyStudentHistory(second.page);
+  await second.page.screenshot({
+    path: path.join(output, 'students-after-restart.png'),
+    fullPage: true,
+  });
   await verifyArchiveFlow(second.page);
   const archived = await second.evaluate('ClassNoteProbe.snapshot()');
   for (const table of [
@@ -219,6 +232,22 @@ try {
         uiCreatedYears: 2,
         uiCreatedGroups: 4,
         uiSelectionAndEditPreserved: true,
+        uiStudentIdentityAndTwoEnrollmentsPreserved: true,
+        studentContinuity: before.students
+          .filter((s) => s.firstName === 'Ána editada')
+          .map((student) => ({
+            studentId: student.id,
+            enrollments: before.enrollments
+              .filter((e) => e.studentId === student.id)
+              .map((e) => ({
+                id: e.id,
+                groupId: e.groupId,
+                status: e.status,
+                joinedAt: e.joinedAt,
+                leftAt: e.leftAt ?? null,
+              })),
+          })),
+        uiSingleEnrollmentDeactivationPreserved: true,
         archiveReactivationPreservedRelations: true,
         externalPageRequests: second.requests,
         checkedAt: new Date().toISOString(),

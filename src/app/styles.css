@@ -447,3 +447,7 @@
     padding: 14px;
   }
 }
+.school-form input[type='radio'] {
+  width: auto;
+  justify-self: start;
+}

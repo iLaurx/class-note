@@ -72,3 +72,13 @@ Ambas claves se guardan atómicamente. Un perfil sin acciones mantiene las diez 
 Actualización explícita de ciclos y grupos: entrada unknown, unicidad comprobada en aplicación más índices únicos de v1, UUID/createdAt inmutables. updatedAt cambia solo si hay cambios persistidos. No se edita un archivado ni un grupo de ciclo archivado. El ciclo propietario del grupo es inmutable. Turno continúa fuera de la identidad; no se normalizan mayúsculas/acentos.
 
 Las fechas nuevas del ciclo deben contener joinedAt, leftAt y las asistencias de sus matrículas, incluidos grupos archivados. Comprobación y escritura comparten transacción. No se recorta, elimina ni reasigna historia. Archivo conserva todas las relaciones y no cambia estados individuales de grupos al archivar su ciclo. Archivo del contexto seleccionado sanea las preferencias en la misma transacción.
+
+## CN-005: identidad, matrículas y archivo sin migración
+
+Se conservan stores e índices de Dexie v1. Student es la ficha global única; los nombres y apellidos recortados son requeridos, admiten homónimos y conservan mayúsculas/acentos. Editar conserva UUID y createdAt; updatedAt registra el guardado. La búsqueda ignora mayúsculas/acentos solo en la proyección UI.
+
+Crear ficha con matrícula es una transacción única. Crear/reactivar matrícula exige alumno, grupo y ciclo activos. La identidad studentId/groupId de una matrícula es inmutable; continuar en otro ciclo/grado crea otra Enrollment para el mismo Student. El índice único studentId+groupId impide duplicados incluso concurrentes. No se restringen matrículas en grupos distintos.
+
+joinedAt y leftAt opcional deben ser fechas reales dentro del ciclo, ordenadas. Corregirlas o reactivar verifica las asistencias existentes dentro del intervalo inclusivo resultante en la misma transacción. No se borran ni recortan relaciones. La baja cambia solo status de esa matrícula y no inventa leftAt. La reactivación conserva UUID y exige confirmar fechas; retirar leftAt es explícito.
+
+Archivar Student usa active=false y cambia sus matrículas activas a inactive en una sola transacción, conservando fechas y todas las relaciones. Reactivar Student no reactiva matrículas. No hay borrado físico, reasignación, fusión ni periodos múltiples: una matrícula por alumno/grupo representa un único intervalo; reingresos separados quedan fuera de CN-005.

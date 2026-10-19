@@ -1,3 +1,4 @@
+import { Students } from '../features/students/Students';
 import { useEffect, useRef } from 'react';
 import { Header } from '../components/layout/Header';
 import { Sidebar } from '../components/layout/Sidebar';
@@ -47,6 +48,8 @@ export function App() {
         )}
         {current?.id === 'home' ? (
           <Dashboard />
+        ) : current?.id === 'students' ? (
+          <Students />
         ) : current?.id === 'settings' ? (
           <SchoolManagement />
         ) : (

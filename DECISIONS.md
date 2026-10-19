@@ -40,3 +40,12 @@
 - appSettings usa dos claves escalares: work.schoolYearId y work.groupId (UUID o null). Sin preferencias iniciales, ni localStorage/sessionStorage, ni cambios de esquema/dependencias.
 - Archivo y saneamiento de selección comparten transacción. Un ciclo archivado no modifica archived de sus grupos. Reactivar nunca selecciona automáticamente un registro. Registros archivados se consultan pero requieren reactivación antes de editar.
 - Ediciones conservan UUID/createdAt; guardar sin cambios conserva updatedAt. Cambiar propietario de grupo se rechaza. Reducir fechas verifica matrículas y asistencias dentro de la escritura transaccional; no se añaden restricciones temporales a los demás módulos.
+
+## ADR-008 — Ficha global frente a baja de matrícula (CN-005)
+
+- Student conserva identidad en distintos ciclos/grados; Enrollment conserva cada pertenencia. No se trasladan referencias ni se fusionan homónimos. El alta conjunta es atómica.
+- Baja del grupo solo desactiva esa matrícula. Archivo global exige confirmación nominal con cantidad de matrículas activas y desactiva ficha y dichas matrículas atómicamente, sin modificar fechas ni registros educativos. Reactivación global no tiene cascada.
+- Una matrícula por alumno/grupo, sin periodos adicionales de reingreso. La reactivación confirma el intervalo y permite retirar la salida expresamente, siempre protegiendo asistencias inclusivas. No hay traslados ni promoción automática.
+- La lista consulta solo el grupo explícito. Las fichas globales se consultan intencionalmente para alta/matriculación o detalle; permiten distinguir homónimos mediante UUID, fecha de creación y pertenencias. No se añaden datos personales.
+- El cambio de contexto desmonta formularios/detalles y avisa; las escrituras reciben el destino explícito. Respuestas antiguas se ignoran. Bloqueo inmediato previene doble envío; un fallo de consulta posterior a una escritura confirmada no invita a repetir el alta.
+- Esquema v1, dependencias, permisos, perfil, identifier y CSP sin cambios. No hay CI ni módulos de seguimiento nuevos.

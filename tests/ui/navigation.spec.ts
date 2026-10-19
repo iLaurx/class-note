@@ -34,6 +34,8 @@ for (const width of [1100, 768, 360]) {
           await expect(
             page.getByRole('heading', { name: 'Ciclos escolares y grupos' }),
           ).toBeVisible();
+        else if (label === 'Alumnos')
+          await expect(page.getByRole('heading', { name: 'Alumnos del grupo' })).toBeVisible();
         else await expect(page.getByText('EN PREPARACIÓN', { exact: true })).toBeVisible();
         await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
       }
