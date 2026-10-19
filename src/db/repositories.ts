@@ -1,5 +1,5 @@
 import type { ClassNoteDatabase } from './database.ts';
-import { storageOperation } from './errors.ts';
+import { StorageError, storageOperation } from './errors.ts';
 import type { AuditedEntity, SettingValue } from '../domain/models.ts';
 import {
   choice,
@@ -69,6 +69,23 @@ export class Repositories {
     return { ...result, enrollment };
   }
 
+  private async uniqueYear(label: string, exceptId?: string) {
+    const existing = await this.db.schoolYears.where('label').equals(label).first();
+    if (existing && existing.id !== exceptId)
+      throw new StorageError('Ya existe un ciclo con esa etiqueta, incluso entre los archivados.');
+  }
+
+  private async uniqueGroup(schoolYearId: string, grade: number, name: string, exceptId?: string) {
+    const existing = await this.db.groups
+      .where('[schoolYearId+grade+name]')
+      .equals([schoolYearId, grade, name])
+      .first();
+    if (existing && existing.id !== exceptId)
+      throw new StorageError(
+        'Ya existe un grupo con ese ciclo, grado y nombre, incluso entre los archivados.',
+      );
+  }
+
   createSchoolYear(input: unknown) {
     return this.write(async () => {
       const data = record(input);
@@ -82,6 +99,7 @@ export class Repositories {
         endDate,
         archived: flag(data.archived, false),
       };
+      await this.uniqueYear(value.label);
       await this.db.schoolYears.add(value);
       return value;
     });
@@ -95,6 +113,7 @@ export class Repositories {
     return this.write(async () => {
       const data = record(input);
       const year = await this.year(data.schoolYearId);
+      requireRule(!year.archived, 'Reactiva el ciclo antes de crear grupos.');
       const value = {
         ...audit(),
         schoolYearId: year.id,
@@ -103,6 +122,7 @@ export class Repositories {
         shift: optionalText(data.shift, 'Turno'),
         archived: flag(data.archived, false),
       };
+      await this.uniqueGroup(year.id, value.grade, value.name);
       await this.db.groups.add(value);
       return value;
     });
@@ -112,6 +132,165 @@ export class Repositories {
     return this.read(async () => {
       const year = await this.year(schoolYearId);
       return this.db.groups.where('schoolYearId').equals(year.id).toArray();
+    });
+  }
+
+  updateSchoolYear(id: string, input: unknown) {
+    return this.write(async () => {
+      const previous = await this.year(id);
+      requireRule(!previous.archived, 'Reactiva el ciclo antes de editarlo.');
+      const data = record(input);
+      const startDate = schoolDate(data.startDate);
+      const endDate = schoolDate(data.endDate);
+      requireRule(startDate <= endDate, 'El inicio del ciclo no puede ser posterior al fin.');
+      const groups = await this.db.groups.where('schoolYearId').equals(id).primaryKeys();
+      const enrollments = await this.db.enrollments.where('groupId').anyOf(groups).toArray();
+      for (const enrollment of enrollments) {
+        requireRule(
+          enrollment.joinedAt >= startDate &&
+            enrollment.joinedAt <= endDate &&
+            (enrollment.leftAt === undefined || enrollment.leftAt <= endDate),
+          'El intervalo dejaría matrículas fuera del ciclo. Conserva sus fechas.',
+        );
+      }
+      const attendance = await this.db.attendance
+        .where('enrollmentId')
+        .anyOf(enrollments.map((item) => item.id))
+        .toArray();
+      requireRule(
+        attendance.every((item) => item.date >= startDate && item.date <= endDate),
+        'El intervalo dejaría asistencias fuera del ciclo. Conserva sus fechas.',
+      );
+      const fields = { label: text(data.label, 'Nombre del ciclo'), startDate, endDate };
+      if (
+        previous.label === fields.label &&
+        previous.startDate === startDate &&
+        previous.endDate === endDate
+      )
+        return previous;
+      const value = { ...previous, ...fields, updatedAt: new Date().toISOString() };
+      await this.uniqueYear(value.label, id);
+      await this.db.schoolYears.put(value);
+      return value;
+    });
+  }
+
+  updateGroup(context: GroupContext, input: unknown) {
+    return this.write(async () => {
+      const { year, group } = await this.group(context);
+      requireRule(
+        !year.archived && !group.archived,
+        'Reactiva el ciclo y el grupo antes de editar.',
+      );
+      const data = record(input);
+      requireRule(
+        data.schoolYearId === undefined || data.schoolYearId === year.id,
+        'El ciclo del grupo no se puede cambiar. Crea otro grupo para conservar el historial.',
+      );
+      const fields = {
+        grade: integer(data.grade, 1, 6, 'Grado'),
+        name: text(data.name, 'Nombre del grupo'),
+        shift: optionalText(data.shift, 'Turno'),
+      };
+      if (
+        group.grade === fields.grade &&
+        group.name === fields.name &&
+        group.shift === fields.shift
+      )
+        return group;
+      const value = { ...group, ...fields, updatedAt: new Date().toISOString() };
+      await this.uniqueGroup(year.id, value.grade, value.name, group.id);
+      await this.db.groups.put(value);
+      return value;
+    });
+  }
+
+  private async storeContext(schoolYearId: string | null, groupId: string | null) {
+    await this.db.appSettings.bulkPut([
+      { key: 'work.schoolYearId', value: schoolYearId },
+      { key: 'work.groupId', value: groupId },
+    ]);
+    return { schoolYearId, groupId };
+  }
+
+  private async validContext() {
+    const savedYear = await this.db.appSettings.get('work.schoolYearId');
+    const savedGroup = await this.db.appSettings.get('work.groupId');
+    const year =
+      typeof savedYear?.value === 'string'
+        ? await this.db.schoolYears.get(savedYear.value)
+        : undefined;
+    const group =
+      typeof savedGroup?.value === 'string'
+        ? await this.db.groups.get(savedGroup.value)
+        : undefined;
+    const schoolYearId = year && !year.archived ? year.id : null;
+    const groupId =
+      schoolYearId && group && !group.archived && group.schoolYearId === schoolYearId
+        ? group.id
+        : null;
+    if (
+      (savedYear && savedYear.value !== schoolYearId) ||
+      (savedGroup && savedGroup.value !== groupId)
+    ) {
+      await this.storeContext(schoolYearId, groupId);
+    }
+    return { schoolYearId, groupId };
+  }
+
+  loadWorkspace() {
+    return this.write(async () => ({
+      selection: await this.validContext(),
+      years: await this.db.schoolYears.orderBy('label').toArray(),
+      groups: await this.db.groups.toArray(),
+    }));
+  }
+
+  selectContext(input: unknown) {
+    return this.write(async () => {
+      const data = record(input);
+      const schoolYearId = data.schoolYearId === null ? null : uuid(data.schoolYearId);
+      const groupId = data.groupId === null ? null : uuid(data.groupId);
+      if (schoolYearId) {
+        const year = await this.year(schoolYearId);
+        requireRule(!year.archived, 'El ciclo está archivado.');
+        if (groupId) {
+          const { group } = await this.group({ schoolYearId, groupId });
+          requireRule(!group.archived, 'El grupo está archivado.');
+        }
+      } else requireRule(groupId === null, 'Selecciona primero un ciclo escolar.');
+      return this.storeContext(schoolYearId, groupId);
+    });
+  }
+
+  archiveSchoolYear(id: string) {
+    return this.setSchoolYearArchived(id, true);
+  }
+  reactivateSchoolYear(id: string) {
+    return this.setSchoolYearArchived(id, false);
+  }
+  private setSchoolYearArchived(id: string, archived: boolean) {
+    return this.write(async () => {
+      const year = await this.year(id);
+      if (year.archived !== archived)
+        await this.db.schoolYears.put({ ...year, archived, updatedAt: new Date().toISOString() });
+      await this.validContext();
+    });
+  }
+
+  archiveGroup(context: GroupContext) {
+    return this.setGroupArchived(context, true);
+  }
+  reactivateGroup(context: GroupContext) {
+    return this.setGroupArchived(context, false);
+  }
+  private setGroupArchived(context: GroupContext, archived: boolean) {
+    return this.write(async () => {
+      const { year, group } = await this.group(context);
+      requireRule(!year.archived, 'Reactiva el ciclo antes de cambiar el estado del grupo.');
+      if (group.archived !== archived)
+        await this.db.groups.put({ ...group, archived, updatedAt: new Date().toISOString() });
+      await this.validContext();
     });
   }
 

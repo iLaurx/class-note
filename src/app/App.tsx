@@ -5,6 +5,8 @@ import { Dashboard } from '../features/dashboard/Dashboard';
 import { ModulePlaceholder } from '../features/ModulePlaceholder';
 import { useNavigation } from './useNavigation';
 import { StorageNotice } from './StorageNotice';
+import { WorkContextSelector } from './WorkContextSelector';
+import { SchoolManagement } from '../features/school-years/SchoolManagement';
 
 export function App() {
   const current = useNavigation();
@@ -35,12 +37,21 @@ export function App() {
       <Sidebar current={current} />
       <main id="main-content" ref={mainRef} tabIndex={-1} className="main-content">
         <Header current={current} />
-        <div className="demo-notice">
-          <span className="demo-tag">DEMOSTRACIÓN</span>
-          <p>Todos los datos son ficticios. La demostración no se guarda en la base local.</p>
-        </div>
         <StorageNotice />
-        {current?.id === 'home' ? <Dashboard /> : <ModulePlaceholder section={current} />}
+        <WorkContextSelector />
+        {current?.id === 'home' && (
+          <div className="demo-notice">
+            <span className="demo-tag">DEMOSTRACIÓN</span>
+            <p>Todos los datos son ficticios. La demostración no se guarda en la base local.</p>
+          </div>
+        )}
+        {current?.id === 'home' ? (
+          <Dashboard />
+        ) : current?.id === 'settings' ? (
+          <SchoolManagement />
+        ) : (
+          <ModulePlaceholder section={current} />
+        )}
         <footer className="page-footer">
           Hecho para el día a día de tu aula.
           <span>ClassNote · Sin cuentas ni servicios externos</span>

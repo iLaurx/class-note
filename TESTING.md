@@ -77,3 +77,13 @@ La prueba nativa conserva datos tras cerrar el proceso y reapertura en el mismo 
 incluida escritura offline posterior y navegación. No cubre primer arranque sin red,
 tráfico global de Windows, reinicio del equipo, instalación, actualización, desinstalación
 ni respaldo/restauración. Esos criterios manuales y CN-013 siguen pendientes.
+
+## CN-004: gestión escolar y contexto
+
+- tests/db/school-management.test.ts: altas/ediciones, duplicados, fechas/grados, identidad inmutable, guardado sin cambios, reducción de intervalo contra matrículas/asistencias, archivo/reactivación sin cascada, conservación de relaciones, selección válida/inválida y rollback de archivo si falla la escritura de preferencias.
+- tests/ui/school-management.spec.ts y tests/helpers/school-flow.ts: primera ejecución vacía, dos ciclos y dos grupos por ciclo, administración independiente, selección/alternancia/recarga, edición, confirmación cancelada, archivo/reactivación, recuperación de duplicados y controles accesibles a 1100/768/360 px. Se mantienen las pruebas previas de navegación, base vacía y red externa.
+- tests/native/persistence.mjs reutiliza el ejecutable release y perfil temporal de CN-003. Además de fixtures de diez tablas, crea dos ciclos y cuatro grupos desde UI, selecciona contexto y edita turno offline. Cierra completamente el proceso y WebView2; reabre el mismo ejecutable/perfil, compara valores/UUID de las diez tablas y verifica selección/edición por UI. Prueba archivo/reactivación y conservación de relaciones sintéticas después del reinicio.
+- Comandos sin cambios: pnpm lint, pnpm format:check, pnpm typecheck, pnpm test, pnpm build, pnpm tauri:build y pnpm test:native.
+- Evidencia local excluida de Git: test-results/school-management-*.png y test-results/native/{result.json,first-launch.png,after-restart.png}.
+
+Resultados CN-004 (19/10/2026): lint, format:check, typecheck, test (18 DB + 2 distribución + 13 UI), build, tauri:build y test:native aprobados. Las pruebas adicionales comprueban cancelación sin escrituras, alternancia rápida sin resultados antiguos y reintento tras fallo de lectura. El reinicio real conserva instantánea exacta de diez tablas, selección y turno editado; archivo/reactivación posterior conserva relaciones. Detalles: docs/SCHOOL_YEARS_GROUPS.md. Ejecutar test:native al final para conservar su evidencia, pues la suite UI limpia test-results al iniciar. CN-002 y CN-013 siguen pendientes.
