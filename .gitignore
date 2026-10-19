@@ -1,0 +1,51 @@
+# Dependencias
+node_modules/
+
+# Compilaciones
+dist/
+dist-ssr/
+build/
+src-tauri/target/
+
+# Variables de entorno privadas
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Archivos de respaldo y datos reales
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.sqlite-wal
+*.sqlite-shm
+/backups/
+/exports/
+/data/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editores
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Archivos temporales
+*.tmp
+*.bak
+*.swp
+
+# Documentación interna para agentes
+/AGENTS.md
+/MVP.md
+/TASKS.md
+/docs/DECISIONS.md
+/docs/TESTING.md
