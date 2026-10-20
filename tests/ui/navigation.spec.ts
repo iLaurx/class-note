@@ -21,7 +21,9 @@ for (const width of [1100, 768, 360]) {
     });
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Inicio');
-    await expect(page.getByText('Todos los datos son ficticios.')).toBeVisible();
+    await expect(
+      page.getByText('Selecciona un ciclo y un grupo para consultar el resumen.'),
+    ).toBeVisible();
     for (const [label, hash] of sections) {
       const link = page.getByRole('navigation').getByRole('link', { name: label, exact: true });
       await link.click();

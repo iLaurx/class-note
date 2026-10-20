@@ -1,8 +1,11 @@
 import { BookOpen, ChevronDown, WifiOff } from 'lucide-react';
 import { navigation, type NavigationItem } from '../../app/navigation';
-import { dashboardMock } from '../../features/dashboard/dashboard.mock';
+import { useWorkContext } from '../../app/useWorkContext';
 
 export function Sidebar({ current }: { current: NavigationItem | undefined }) {
+  const { data, busy } = useWorkContext();
+  const year = busy ? undefined : data?.years.find((row) => row.id === data.selection.schoolYearId);
+  const group = busy ? undefined : data?.groups.find((row) => row.id === data.selection.groupId);
   return (
     <aside className="sidebar">
       <a href="#/inicio" className="brand" aria-label="ClassNote, ir a Inicio">
@@ -14,12 +17,11 @@ export function Sidebar({ current }: { current: NavigationItem | undefined }) {
         </span>
       </a>
       <div className="group-context">
-        <span className="eyebrow">GRUPO DE EJEMPLO</span>
+        <span className="eyebrow">CONTEXTO DE TRABAJO</span>
         <div className="mt-2 flex items-center justify-between gap-2">
-          <strong>{dashboardMock.group}</strong>
-          <span className="text-sm">{dashboardMock.schoolYear}</span>
+          <strong>{group ? `${group.grade}.º ${group.name}` : 'Sin grupo seleccionado'}</strong>
+          <span className="text-sm">{year?.label}</span>
         </div>
-        <p className="mt-1 text-xs text-stone-600">{dashboardMock.shift}</p>
         <a href="#/configuracion" className="context-link">
           Ver configuración <ChevronDown size={14} aria-hidden="true" />
         </a>
@@ -46,7 +48,7 @@ export function Sidebar({ current }: { current: NavigationItem | undefined }) {
           Funciona sin internet
         </div>
         <p className="mt-2 text-xs leading-5 text-stone-600">Tu día escolar, a tu ritmo.</p>
-        <p className="mt-4 text-xs text-stone-500">ClassNote · Vista de demostración</p>
+        <p className="mt-4 text-xs text-stone-500">ClassNote · Agenda escolar</p>
       </div>
     </aside>
   );

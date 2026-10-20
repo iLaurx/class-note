@@ -30,8 +30,8 @@ Después de CN-001/CN-001A:
 - `pnpm typecheck`: TypeScript estricto, incluida la configuración y las pruebas UI.
 - `pnpm lint` y `pnpm format:check`: ESLint y Prettier.
 - `pnpm build`: frontend distribuible.
-- `pnpm test`: build, 52 pruebas de dominio/persistencia con Node, dos comprobaciones de distribución y 51 tests UI (incluye CN-009).
-- `pnpm test:db`: 52 pruebas TypeScript con Node Test Runner y fake-indexeddb. Requiere Node 24 o compatible con `--experimental-strip-types`; no descarga runner ni navegador.
+- `pnpm test`: build, 55 pruebas de dominio/persistencia con Node, dos comprobaciones de distribución y 55 tests UI (incluye CN-010).
+- `pnpm test:db`: 55 pruebas TypeScript con Node Test Runner y fake-indexeddb. Requiere Node 24 o compatible con `--experimental-strip-types`; no descarga runner ni navegador.
 - `pnpm test:native`: ejecutable release real, WebView2 con perfil aislado y CDP local, escritura/lectura offline, cierre completo y reapertura. Requiere `pnpm tauri:build` previo; no inicia Vite ni instala ClassNote. Véase [PERSISTENCE.md](docs/PERSISTENCE.md).
 - `pnpm test:ui`: build y tests UI con Playwright / Edge instalado, sin descargar navegadores.
 - `pnpm tauri:dev`: compilación y arranque nativo.
@@ -136,3 +136,32 @@ Resultados finales CN-008 (19/10/2026): lint, format:check, typecheck, test (47 
 - Comandos: pnpm lint, pnpm format:check, pnpm typecheck, pnpm test, pnpm build, pnpm tauri:build y finalmente pnpm test:native. Capturas notes-*.png/notes-form-*.png y native/notes-after-restart.png; resultados finales y límites: docs/OBSERVATIONS.md. No ejecutarlo con perfiles personales ni cambiar la red del equipo. CN-002/CN-013 siguen pendientes.
 
 Resultados finales CN-009 (19/10/2026): lint, format:check, typecheck, test (52 dominio/DB + 2 distribución + 51 UI), build, tauri:build y test:native aprobados. Release x64 e instalador NSIS de 1.992.441 bytes generados. Dos procesos nativos distintos (33060 y 30512), igualdad exacta de diez tablas y 39 registros de dominio tras reinicio, notas creadas/editadas e historial UI recuperado; alta offline posterior y eliminación cancelada/confirmada sin tocar alumnos/matrículas. Capturas finales de seis vistas a 1100/768/360 px y WebView2 tras reinicio inspeccionadas. Incidencias resueltas, evidencia y límites: docs/OBSERVATIONS.md. CN-009 completa, sin cerrar CN-002/CN-013.
+
+## CN-010: resumen docente
+
+- tests/db/dashboard.test.ts: tres pruebas de calendario local, población inclusiva
+  histórica, asistencia incompleta/justificada, tareas recientes/próximas y pendientes
+  por fecha de asignación; lecturas semanales con ceros, vacíos, aislamiento entre
+  ciclos/grupos y diez tablas sin cambios tras consultar. Dexie v1 intacta.
+- tests/ui/dashboard.spec.ts: cuatro pruebas de carga, error con reintento por teclado,
+  contexto alternado, accesos rápidos y 1100/768/360 px; offline, cero transacciones
+  de escritura al consultar Inicio y cero solicitudes externas. Capturas dashboard-*.png.
+- tests/native/persistence.mjs: resumen real por UI antes/después de cierre completo y
+  reapertura del mismo release/perfil WebView2 aislado. Snapshot exacto antes/después
+  de leer el dashboard. Evidencia native/dashboard-*.png y native/result.json.
+- Ejecutar pnpm lint, pnpm format:check, pnpm typecheck, pnpm test, pnpm build,
+  pnpm tauri:build y finalmente pnpm test:native. UI limpia test-results; no repetirla
+  después de guardar evidencia nativa. Resultados finales: [DASHBOARD.md](docs/DASHBOARD.md).
+- No afirma nuevas garantías de persistencia ni valida instalación inicial offline,
+  tráfico global de Windows, actualización/desinstalación, backups o lector de pantalla.
+  CN-002/CN-013 siguen pendientes.
+
+Resultados finales CN-010 (19/10/2026): lint, format:check, typecheck, test (55
+dominio/DB + 2 distribución + 55 UI), build, tauri:build y test:native aprobados.
+Release x64 e instalador NSIS de 1.991.736 bytes; PIDs nativos 31904 y 28496,
+39 registros de dominio y diez tablas exactamente conservadas. Resumen de cuatro
+matrículas, asistencia separada por estado, dos tareas y 35 minutos/3 lecturas
+recuperado por UI; lectura del dashboard sin cambios en las diez tablas. Cero
+solicitudes externas. Capturas de las tres resoluciones y WebView2 antes/después
+del reinicio inspeccionadas. Incidencias y límites en docs/DASHBOARD.md. CN-010
+completa; CN-002/CN-013 permanecen pendientes.

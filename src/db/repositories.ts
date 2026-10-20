@@ -1,3 +1,4 @@
+import { dashboardSummary, dashboardPeriod } from '../features/dashboard/dashboardDomain.ts';
 import { noteFields, matchesNote } from '../features/notes/notesDomain.ts';
 import {
   assignmentFields,
@@ -8,6 +9,7 @@ import {
   matchesReading,
   readingFields,
   readingHistory,
+  readingWeek,
 } from '../features/reading/readingDomain.ts';
 import type { ClassNoteDatabase } from './database.ts';
 import { StorageError, storageOperation } from './errors.ts';
@@ -81,6 +83,40 @@ export class Repositories {
     return { year, group };
   }
 
+  loadDashboard(context: GroupContext, inputDate: unknown) {
+    return this.read(async () => {
+      const { year, group } = await this.group(context);
+      const today = schoolDate(inputDate);
+      const period = dashboardPeriod(today);
+      const enrollments = await this.db.enrollments.where('groupId').equals(group.id).toArray();
+      const ids = enrollments.map((row) => row.id);
+      const assignments = await this.db.assignments
+        .where('groupId')
+        .equals(group.id)
+        .filter(
+          (row) =>
+            (row.assignedDate >= period.recentFrom && row.assignedDate <= today) ||
+            (row.dueDate !== undefined && row.dueDate >= today && row.dueDate <= period.upcomingTo),
+        )
+        .toArray();
+      const attendance = await this.db.attendance
+        .where('enrollmentId')
+        .anyOf(ids)
+        .filter((row) => row.date === today)
+        .toArray();
+      const week = readingWeek(today);
+      const logs = await this.db.readingLogs
+        .where('enrollmentId')
+        .anyOf(ids)
+        .filter((row) => row.date >= week.from && row.date <= week.to)
+        .toArray();
+      const submissions = await this.db.submissions
+        .where('assignmentId')
+        .anyOf(assignments.map((row) => row.id))
+        .toArray();
+      return dashboardSummary(year, today, enrollments, attendance, assignments, submissions, logs);
+    });
+  }
   private async enrollment(context: EnrollmentContext) {
     const result = await this.group(context);
     const enrollment = await this.db.enrollments.get(uuid(context.enrollmentId));

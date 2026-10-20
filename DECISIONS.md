@@ -80,3 +80,10 @@
 - Historial del grupo explícito, incluidas matrículas inactivas/fichas archivadas relacionadas válidamente. Nuevas notas y correcciones dentro del ciclo/matrícula inclusivos; grupo/ciclo archivados requieren reactivación para escribir. Notas anteriores conservadas; no se amplía la política de otros módulos ni se inventan migraciones.
 - Edición con propietario inmutable y comparación optimista completa, sin escritura al guardar valores iguales. Borrado individual confirmado con nombre/fecha; compara instantánea para evitar borrar una corrección ajena. No aplica la validación temporal al borrar historia previa, pero sí las referencias/contexto y la propiedad. Cancelar no escribe.
 - Formulario en memoria asociado al contexto; reutiliza guarda de navegación/contexto, confirmación nativa accesible y bloqueo de doble envío. Consultas obsoletas descartadas. Commit confirmado seguido de lectura fallida reintenta solo consulta; errores de escritura conservan borrador. Evidencia y límites: docs/OBSERVATIONS.md.
+
+## ADR-013 — Resumen de lectura por contexto y periodos explícitos (CN-010)
+
+- Inicio usa una instantánea readonly de Dexie con ciclo/grupo/día explícitos; componentes sin acceso a tablas. Mocks retirados también de la barra lateral. Sin esquema, permisos, dependencias ni escrituras nuevas.
+- Matrículas y asistencia de hoy reutilizan los intervalos inclusivos de CN-006, incluso historia inactiva/archivada; fuera del ciclo se explica la ausencia de población/asistencia. Cuatro estados separados y pendientes de captura, sin porcentajes.
+- Agenda de presentación: siete días de asignaciones hasta hoy y siete días de entregas desde hoy, ambos inclusivos. Hasta cinco filas, total visible y acceso al listado completo. Pendientes según CN-007 y población en assignedDate; incidencias conservadas y señaladas. Sin nueva política de evaluación/vencimiento.
+- Lecturas de la semana civil completa de CN-008: minutos y registros, incluidos ceros; ausencia de entradas explícita. Fechas locales, refresco al cambiar día, estados de carga/error/reintento y respuestas obsoletas descartadas. Alcance y límites: [DASHBOARD.md](docs/DASHBOARD.md).

@@ -44,12 +44,6 @@ export function App() {
         <Header current={current} />
         <StorageNotice />
         <WorkContextSelector />
-        {current?.id === 'home' && (
-          <div className="demo-notice">
-            <span className="demo-tag">DEMOSTRACIÓN</span>
-            <p>Todos los datos son ficticios. La demostración no se guarda en la base local.</p>
-          </div>
-        )}
         {current?.id === 'home' ? (
           <Dashboard />
         ) : current?.id === 'students' ? (

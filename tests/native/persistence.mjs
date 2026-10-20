@@ -159,6 +159,32 @@ async function launch() {
   }
 }
 
+async function verifyDashboard(session, stage) {
+  await session.page.clock.setFixedTime(new Date(2026, 9, 19, 23, 30));
+  const snapshot = await session.evaluate('ClassNoteProbe.snapshot()');
+  await session.page
+    .getByRole('navigation')
+    .getByRole('link', { name: 'Inicio', exact: true })
+    .click();
+  const summary = session.page.getByRole('region', { name: 'Resumen del grupo', exact: true });
+  await expect(summary).toBeVisible();
+  await expect(
+    summary.getByRole('article', { name: 'Matrículas de hoy' }).locator('strong'),
+  ).toHaveText('4');
+  await expect(summary).toContainText('Presente: 2');
+  await expect(summary).toContainText('Falta justificada: 1');
+  await expect(summary).toContainText('35 minutos · 3 registros');
+  await expect(summary).toContainText('Sin registrar: 0');
+  assert.deepEqual(
+    await session.evaluate('ClassNoteProbe.snapshot()'),
+    snapshot,
+    'Consultar el dashboard no debe escribir.',
+  );
+  await session.page.screenshot({
+    path: path.join(output, `dashboard-${stage}.png`),
+    fullPage: true,
+  });
+}
 const first = await launch();
 let before;
 try {
@@ -175,6 +201,7 @@ try {
   await recordSubmissions(first.page);
   await recordReading(first.page);
   await recordNotes(first.page);
+  await verifyDashboard(first, 'before-restart');
   before = await first.evaluate('ClassNoteProbe.snapshot()');
   const student = before.students.find((s) => s.firstName === 'Ána editada');
   assert.ok(student);
@@ -192,6 +219,7 @@ const second = await launch();
 try {
   const after = await second.evaluate('ClassNoteProbe.snapshot()');
   assert.deepEqual(after, before, 'Todos los valores, UUID y relaciones deben conservarse.');
+  await verifyDashboard(second, 'after-restart');
   // A second offline write/read proves the reopened store remains writable.
   const result = await second.evaluate('ClassNoteProbe.writeAfterRestart()');
   assert.equal(result.appSettings.length, 4);
@@ -329,6 +357,8 @@ try {
           .reduce((total, [, rows]) => total + rows.length, 0),
         preservedTables: Object.keys(before),
         exactSnapshotPreserved: true,
+        uiDashboardBeforeAndAfterRestart: true,
+        dashboardReadOnlySnapshotUnchanged: true,
         offlineWriteAfterRestart: true,
         uiAttendancePartialCompletionCorrection: true,
         uiAttendanceStatesNotesCountsPreserved: true,
