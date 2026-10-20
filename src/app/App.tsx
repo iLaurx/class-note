@@ -1,4 +1,5 @@
 import { Assignments } from '../features/assignments/Assignments';
+import { Reading } from '../features/reading/Reading';
 import { Students } from '../features/students/Students';
 import { Attendance } from '../features/attendance/Attendance';
 import { useEffect, useRef } from 'react';
@@ -56,6 +57,8 @@ export function App() {
           <Attendance />
         ) : current?.id === 'assignments' ? (
           <Assignments />
+        ) : current?.id === 'reading' ? (
+          <Reading />
         ) : current?.id === 'settings' ? (
           <SchoolManagement />
         ) : (

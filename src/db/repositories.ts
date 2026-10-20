@@ -3,6 +3,11 @@ import {
   matchesSubmission,
   submissionStates,
 } from '../features/assignments/assignmentDomain.ts';
+import {
+  matchesReading,
+  readingFields,
+  readingHistory,
+} from '../features/reading/readingDomain.ts';
 import type { ClassNoteDatabase } from './database.ts';
 import { StorageError, storageOperation } from './errors.ts';
 import type {
@@ -878,15 +883,19 @@ export class Repositories {
 
   createReadingLog(context: EnrollmentContext, input: unknown) {
     return this.write(async () => {
-      const { enrollment } = await this.enrollment(context);
-      const data = record(input);
+      const { year, group, enrollment } = await this.enrollment(context);
+      requireRule(
+        !year.archived && !group.archived,
+        'Reactiva el ciclo y el grupo antes de guardar lecturas.',
+      );
+      requireRule(
+        await this.db.students.get(enrollment.studentId),
+        'No se pudo resolver la ficha del alumno.',
+      );
       const value = {
         ...audit(),
         enrollmentId: enrollment.id,
-        date: schoolDate(data.date),
-        title: text(data.title, 'Título'),
-        minutes: integer(data.minutes, 0, Number.MAX_SAFE_INTEGER, 'Minutos'),
-        comment: optionalText(data.comment, 'Comentario'),
+        ...readingFields(input, year, enrollment),
       };
       await this.db.readingLogs.add(value);
       return value;
@@ -896,7 +905,69 @@ export class Repositories {
   listReadingLogs(context: EnrollmentContext) {
     return this.read(async () => {
       const { enrollment } = await this.enrollment(context);
-      return this.db.readingLogs.where('enrollmentId').equals(enrollment.id).toArray();
+      return readingHistory(
+        await this.db.readingLogs.where('enrollmentId').equals(enrollment.id).toArray(),
+        enrollment.id,
+        '',
+        '',
+      );
+    });
+  }
+
+  updateReadingLog(
+    context: EnrollmentContext,
+    readingId: string,
+    input: unknown,
+    expected: unknown,
+  ) {
+    return this.write(async () => {
+      const { year, group, enrollment } = await this.enrollment(context);
+      requireRule(
+        !year.archived && !group.archived,
+        'Reactiva el ciclo y el grupo antes de guardar lecturas.',
+      );
+      requireRule(
+        await this.db.students.get(enrollment.studentId),
+        'No se pudo resolver la ficha del alumno.',
+      );
+      const previous = await this.db.readingLogs.get(uuid(readingId));
+      requireRule(
+        previous && previous.enrollmentId === enrollment.id,
+        'La lectura no pertenece a la matrícula indicada.',
+      );
+      const fields = readingFields(input, year, enrollment);
+      requireRule(
+        matchesReading(expected, previous),
+        'La lectura cambió en otra ventana. Conservamos tu borrador; consulta los datos guardados antes de corregir.',
+      );
+      if (
+        Object.entries(fields).every(
+          ([key, value]) => previous[key as keyof typeof previous] === value,
+        )
+      )
+        return previous;
+      const value = { ...previous, ...fields, updatedAt: new Date().toISOString() };
+      await this.db.readingLogs.put(value);
+      return value;
+    });
+  }
+
+  loadReadingGroup(context: GroupContext) {
+    return this.read(async () => {
+      await this.group(context);
+      const members = await this.listGroupStudents(context);
+      members.sort(
+        (a, b) =>
+          `${a.student.lastName} ${a.student.firstName}`.localeCompare(
+            `${b.student.lastName} ${b.student.firstName}`,
+            'es',
+          ) || a.enrollment.id.localeCompare(b.enrollment.id),
+      );
+      const logs = await this.db.readingLogs
+        .where('enrollmentId')
+        .anyOf(members.map((member) => member.enrollment.id))
+        .toArray();
+      return { members, logs };
     });
   }
 

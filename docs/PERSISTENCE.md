@@ -3,6 +3,14 @@
 Implementado y validado el 19 de octubre de 2026. Alcance exclusivo CN-003: base
 tipada, repositorios e inicialización. No hay formularios escolares ni dashboard real.
 
+Este documento conserva la evidencia histórica de CN-003. El flujo nativo actual
+incluye los formularios de etapas posteriores; para las lecturas de CN-008,
+sus reglas y resultados vigentes véase [READING.md](READING.md). La prueba compara
+las diez tablas después de crear/editar lecturas por UI, cerrar completamente y
+reabrir el mismo ejecutable/perfil. Después comprueba historial, resumen semanal y
+una nueva lectura offline. La evidencia adicional es `native/reading-after-restart.png`
+y los campos de lectura de `native/result.json`, dentro de `test-results/`.
+
 ## Archivos entregados
 
 - Dominio: `src/domain/models.ts`, `src/domain/validation.ts`.

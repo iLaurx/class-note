@@ -4,6 +4,7 @@ import {
   commentField,
   saveDeliveries,
 } from '../helpers/assignment-flow.ts';
+import { addReading, recordReading, verifyReading } from '../helpers/reading-flow.ts';
 import { createStudentHistory, verifyStudentHistory } from '../helpers/student-flow.ts';
 import {
   prepareAttendanceStudents,
@@ -171,6 +172,7 @@ try {
   await prepareAttendanceStudents(first.page);
   await recordAttendance(first.page);
   await recordSubmissions(first.page);
+  await recordReading(first.page);
   before = await first.evaluate('ClassNoteProbe.snapshot()');
   const student = before.students.find((s) => s.firstName === 'Ána editada');
   assert.ok(student);
@@ -228,6 +230,27 @@ try {
   assert.equal(corrected.createdAt, previous.createdAt);
   assert.equal(corrected.status, 'pending');
   assert.equal(corrected.comment, 'Comentario posterior offline');
+  await verifyReading(second.page);
+  await second.page.screenshot({
+    path: path.join(output, 'reading-after-restart.png'),
+    fullPage: true,
+  });
+  await addReading(second.page, 0, 'Lectura offline posterior');
+  const readingAfterWrite = await second.evaluate('ClassNoteProbe.snapshot()');
+  assert.equal(readingAfterWrite.readingLogs.length, before.readingLogs.length + 1);
+  assert.equal(
+    readingAfterWrite.readingLogs.filter((row) => row.title === 'Lectura offline posterior').length,
+    1,
+  );
+  for (const log of before.readingLogs)
+    assert.deepEqual(
+      readingAfterWrite.readingLogs.find((row) => row.id === log.id),
+      log,
+    );
+  await second.page.getByLabel('Fecha de la semana').fill('2026-10-19');
+  await expect(
+    second.page.getByText('Total del grupo: 35 minutos · 4 registros', { exact: true }),
+  ).toBeVisible();
   await verifyArchiveFlow(second.page);
   const archived = await second.evaluate('ClassNoteProbe.snapshot()');
   for (const table of [
@@ -239,7 +262,7 @@ try {
     'readingLogs',
     'studentNotes',
   ])
-    assert.deepEqual(archived[table], assignmentsAfterWrite[table]);
+    assert.deepEqual(archived[table], readingAfterWrite[table]);
   for (const label of [
     'Alumnos',
     'Asistencia',
@@ -287,6 +310,10 @@ try {
         offlineSubmissionWriteAfterRestart: true,
         assignmentsBeforeRestart: before.assignments,
         submissionsBeforeRestart: before.submissions,
+        uiReadingCreatedEdited: true,
+        uiReadingHistoryWeeklyTotalsPreserved: true,
+        offlineReadingWriteAfterRestart: true,
+        readingBeforeRestart: before.readingLogs,
         uiCreatedYears: 2,
         uiCreatedGroups: 4,
         uiSelectionAndEditPreserved: true,

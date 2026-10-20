@@ -40,6 +40,8 @@ for (const width of [1100, 768, 360]) {
           await expect(page.getByRole('heading', { name: 'Asistencia diaria' })).toBeVisible();
         else if (label === 'Tareas')
           await expect(page.getByRole('heading', { name: 'Tareas del grupo' })).toBeVisible();
+        else if (label === 'Lectura en casa')
+          await expect(page.getByRole('heading', { name: 'Lecturas del grupo' })).toBeVisible();
         else await expect(page.getByText('EN PREPARACIÓN', { exact: true })).toBeVisible();
         await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
       }

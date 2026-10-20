@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { registerPendingChanges } from '../../app/pendingChanges';
 
-export function useDraftGuard(dirty: boolean, busy: boolean) {
+export function useDraftGuard(dirty: boolean, busy: boolean, module = 'tareas') {
   const state = useRef({ dirty, busy });
   useEffect(() => {
     state.current = { dirty, busy };
@@ -12,7 +12,7 @@ export function useDraftGuard(dirty: boolean, busy: boolean) {
         !state.current.busy &&
         (!state.current.dirty ||
           window.confirm(
-            'Hay cambios de tareas sin guardar. Aceptar descarta el borrador; Cancelar permite continuar editando.',
+            `Hay cambios de ${module} sin guardar. Aceptar descarta el borrador; Cancelar permite continuar editando.`,
           )),
     );
     const closing = (event: BeforeUnloadEvent) => {
@@ -26,5 +26,5 @@ export function useDraftGuard(dirty: boolean, busy: boolean) {
       unregister();
       window.removeEventListener('beforeunload', closing);
     };
-  }, []);
+  }, [module]);
 }

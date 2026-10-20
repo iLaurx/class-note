@@ -26,7 +26,7 @@
 - Matrícula con fechas dentro del ciclo: `startDate <= joinedAt <= leftAt <= endDate` cuando hay salida; sin salida, el límite superior es el fin del ciclo. Asistencia única por matrícula/fecha; debe pertenecer al ciclo y al intervalo de matrícula. Ambos extremos son inclusivos, incluida `leftAt`. Se admite registrar historia de una matrícula inactiva dentro de su intervalo.
 - Entrega única por tarea/matrícula, y la matrícula debe ser del grupo dueño de la tarea.
 - `shift` es opcional y no forma parte de la identidad del grupo en v1. Nombres y etiquetas se recortan en los extremos; su unicidad es sensible a mayúsculas/acentos, sin normalización adicional.
-- `minutes` de lectura entero no negativo; validar máximos plausibles en UI.
+- `minutes` de lectura entero entre 0 y 1440 por entrada, validado en UI y repositorio. Sin límite diario acumulado adicional ni deduplicación por contenido.
 - No eliminar estudiante/ciclo/grupo con datos asociados sin flujo explícito (usar archivo/estado).
 - Historial se conserva al cambiar de grado, pues `students` y `enrollments` son separados.
 - Estados `attendance`: `present | absent | late | excused`.
@@ -48,7 +48,7 @@ studentNotes: 'id, [enrollmentId+date]'
 appSettings: 'key'
 ```
 
-Los tipos están definidos y las referencias se validan en repositorios dentro de la misma transacción que la escritura; IndexedDB no proporciona claves foráneas. Las lecturas y notas admiten varias entradas por matrícula/fecha. La fecha de entrega de tarea, si existe, no precede a la asignación. No se añaden políticas temporales para lecturas/notas/tareas más allá de fechas reales y orden de tarea; sus etapas decidirán los filtros adicionales.
+Los tipos están definidos y las referencias se validan en repositorios dentro de la misma transacción que la escritura; IndexedDB no proporciona claves foráneas. Las lecturas y notas admiten varias entradas por matrícula/fecha. La fecha de entrega de tarea, si existe, no precede a la asignación. Las políticas temporales implementadas en CN-007 y CN-008 se describen abajo; notas conserva únicamente la validación de fecha real.
 
 `appSettings.value` admite valores JSON escalares (`string | number | boolean | null`), con números finitos. No se permiten objetos arbitrarios ni se escriben preferencias iniciales. Las entradas de creación se reciben como `unknown`, se validan y se reconstruyen; IDs y auditoría externos no se copian.
 
@@ -100,3 +100,11 @@ Dexie v1 permanece intacta, incluido el índice único submissions.[assignmentId
 Población dinámica por intervalo inclusivo de matrícula en assignedDate; ignora estados de actividad para la pertenencia histórica y no infiere leftAt. Sin instantánea de destinatarios. Corregir el historial puede cambiarla: entregas incompatibles se conservan, aparecen como incidencias y se bloquean para editar. No se reinterpreta ni elimina ninguna entrega.
 
 Ausencia de Submission es Pendiente sin captura, solo en UI; no produce filas al consultar ni se convierte en No entregada por vencimiento. Comentario con Pending se puede persistir. Guardado atómico de filas modificadas, instantáneas optimistas por identidad/valores/auditoría y tarea leída, correcciones confirmadas conservando UUID/createdAt e idempotencia ante valores iguales. Sin campos nuevos, migración, porcentajes ni calificaciones.
+
+## CN-008: lecturas por matrícula sin migración
+
+Dexie v1 conserva readingLogs y su índice compuesto no único enrollmentId+date. Fecha real local dentro del ciclo y matrícula, extremos inclusivos; fichas archivadas/matrículas inactivas admiten historia sin deducir salida. Título recortado obligatorio; minutos enteros de 0 a 1440 por entrada, sin máximo diario acumulado; comentario opcional. Lecturas idénticas son registros distintos.
+
+Alta/edición validan contexto activo, ficha, referencias e intervalo dentro de la transacción. Matrícula propietaria, UUID y createdAt inmutables; updatedAt cambia solo si cambian campos. Edición con instantánea de identidad, valores y auditoría exige conflicto explícito ante cambios concurrentes; no hay borrado. Las correcciones posteriores de ciclos/matrículas no introducen cascadas ni reinterpretación; al editar lectura se valida el intervalo actual.
+
+Historial individual por fecha descendente y UUID ascendente; rango inclusivo. Semana gregoriana local completa de lunes a domingo, sin UTC, incluso al cruzar mes/año. Totales por matrícula y grupo incluyen todas las entradas y ceros, independientes del filtro del historial. Son proyecciones, no campos nuevos ni métricas persistidas. Detalles: docs/READING.md.
