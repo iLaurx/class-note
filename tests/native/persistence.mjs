@@ -1,3 +1,9 @@
+import {
+  recordSubmissions,
+  verifySubmissions,
+  commentField,
+  saveDeliveries,
+} from '../helpers/assignment-flow.ts';
 import { createStudentHistory, verifyStudentHistory } from '../helpers/student-flow.ts';
 import {
   prepareAttendanceStudents,
@@ -14,7 +20,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { build } from 'vite';
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import {
   createYearsAndGroups,
   verifySelection,
@@ -164,6 +170,7 @@ try {
   await createStudentHistory(first.page);
   await prepareAttendanceStudents(first.page);
   await recordAttendance(first.page);
+  await recordSubmissions(first.page);
   before = await first.evaluate('ClassNoteProbe.snapshot()');
   const student = before.students.find((s) => s.firstName === 'Ána editada');
   assert.ok(student);
@@ -201,6 +208,26 @@ try {
   await second.page.getByText('Asistencia guardada. 3 sin registrar.', { exact: true }).waitFor();
   const afterWrite = await second.evaluate('ClassNoteProbe.snapshot()');
   assert.equal(afterWrite.attendance.length, before.attendance.length + 1);
+  await verifySubmissions(second.page);
+  await second.page.screenshot({
+    path: path.join(output, 'assignments-after-restart.png'),
+    fullPage: true,
+  });
+  await commentField(second.page, 1).fill('Comentario posterior offline');
+  second.page.once('dialog', (dialog) => dialog.accept());
+  await saveDeliveries(second.page).click();
+  await second.page.getByText('Entregas guardadas: 1.', { exact: true }).waitFor();
+  await expect(second.page.getByRole('region', { name: 'Entregas de la tarea' })).toHaveAttribute(
+    'aria-busy',
+    'false',
+  );
+  const assignmentsAfterWrite = await second.evaluate('ClassNoteProbe.snapshot()');
+  assert.equal(assignmentsAfterWrite.submissions.length, before.submissions.length);
+  const previous = before.submissions.find((row) => row.comment === 'Comentario sintético 1');
+  const corrected = assignmentsAfterWrite.submissions.find((row) => row.id === previous.id);
+  assert.equal(corrected.createdAt, previous.createdAt);
+  assert.equal(corrected.status, 'pending');
+  assert.equal(corrected.comment, 'Comentario posterior offline');
   await verifyArchiveFlow(second.page);
   const archived = await second.evaluate('ClassNoteProbe.snapshot()');
   for (const table of [
@@ -212,7 +239,7 @@ try {
     'readingLogs',
     'studentNotes',
   ])
-    assert.deepEqual(archived[table], afterWrite[table]);
+    assert.deepEqual(archived[table], assignmentsAfterWrite[table]);
   for (const label of [
     'Alumnos',
     'Asistencia',
@@ -253,6 +280,13 @@ try {
         uiAttendanceDateGroupIsolation: true,
         offlineAttendanceWriteAfterRestart: true,
         attendanceBeforeRestart: before.attendance,
+        uiAssignmentsCreatedEdited: true,
+        uiSubmissionsStatesCommentsCountsPreserved: true,
+        uiSubmissionCorrectionConfirmed: true,
+        uiAssignmentTaskGroupIsolation: true,
+        offlineSubmissionWriteAfterRestart: true,
+        assignmentsBeforeRestart: before.assignments,
+        submissionsBeforeRestart: before.submissions,
         uiCreatedYears: 2,
         uiCreatedGroups: 4,
         uiSelectionAndEditPreserved: true,

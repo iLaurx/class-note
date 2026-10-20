@@ -92,3 +92,11 @@ Dexie v1 y el índice único attendance.enrollmentId+date permanecen intactos. E
 Corregir conserva id/createdAt y cambia updatedAt únicamente cuando hay valores distintos; no se tocan filas intactas ni otras fechas/grupos. Comparación optimista de identidad, auditoría, estado y nota detecta cambios concurrentes; el conflicto revierte el lote completo. Los valores ya iguales son idempotentes. La instantánea esperada y las confirmaciones son parámetros de operación y no campos nuevos de asistencia.
 
 No hay schema nuevo ni migración necesaria. Los recuentos diarios separan present, absent, late, excused y filas sin registrar; estas últimas solo se derivan del listado del día. No hay métricas por periodo ni política que equipare excused a present.
+
+## CN-007: tareas y entregas sin migración
+
+Dexie v1 permanece intacta, incluido el índice único submissions.[assignmentId+enrollmentId]. Tarea pertenece a grupo/ciclo activo para escribir; título recortado obligatorio (no único), descripción opcional, asignación local real dentro del ciclo y entrega opcional entre asignación y fin del ciclo. Editar conserva identidad/grupo/createdAt; updatedAt solo cambia al modificar valores. Cambiar asignación rechaza entregas persistidas fuera de la población resultante, dentro de la misma transacción.
+
+Población dinámica por intervalo inclusivo de matrícula en assignedDate; ignora estados de actividad para la pertenencia histórica y no infiere leftAt. Sin instantánea de destinatarios. Corregir el historial puede cambiarla: entregas incompatibles se conservan, aparecen como incidencias y se bloquean para editar. No se reinterpreta ni elimina ninguna entrega.
+
+Ausencia de Submission es Pendiente sin captura, solo en UI; no produce filas al consultar ni se convierte en No entregada por vencimiento. Comentario con Pending se puede persistir. Guardado atómico de filas modificadas, instantáneas optimistas por identidad/valores/auditoría y tarea leída, correcciones confirmadas conservando UUID/createdAt e idempotencia ante valores iguales. Sin campos nuevos, migración, porcentajes ni calificaciones.

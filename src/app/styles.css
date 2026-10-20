@@ -531,3 +531,27 @@
     grid-template-columns: 1fr;
   }
 }
+
+.assignment-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 14px;
+  margin-block: 18px;
+}
+.assignments textarea {
+  width: 100%;
+  min-height: 100px;
+  border: 1px solid #8b958e;
+  border-radius: 8px;
+  background: white;
+  padding: 9px;
+}
+.assignment-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.assignments h3 {
+  font-size: 1.15rem;
+  font-weight: 650;
+  margin-block: 16px;
+}

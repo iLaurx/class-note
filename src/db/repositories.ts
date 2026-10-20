@@ -1,6 +1,17 @@
+import {
+  assignmentFields,
+  matchesSubmission,
+  submissionStates,
+} from '../features/assignments/assignmentDomain.ts';
 import type { ClassNoteDatabase } from './database.ts';
 import { StorageError, storageOperation } from './errors.ts';
-import type { AuditedEntity, SettingValue } from '../domain/models.ts';
+import type {
+  AuditedEntity,
+  SettingValue,
+  Enrollment,
+  Student,
+  Submission,
+} from '../domain/models.ts';
 import {
   dateInYear,
   includesDate,
@@ -615,24 +626,205 @@ export class Repositories {
 
   createAssignment(context: GroupContext, input: unknown) {
     return this.write(async () => {
-      const { group } = await this.group(context);
-      const data = record(input);
-      const assignedDate = schoolDate(data.assignedDate);
-      const dueDate = data.dueDate === undefined ? undefined : schoolDate(data.dueDate);
+      const { year, group } = await this.group(context);
       requireRule(
-        dueDate === undefined || dueDate >= assignedDate,
-        'La entrega no puede ser anterior a la asignación.',
+        !year.archived && !group.archived,
+        'Reactiva el ciclo y el grupo antes de guardar tareas.',
       );
-      const value = {
-        ...audit(),
-        groupId: group.id,
-        title: text(data.title, 'Título'),
-        description: optionalText(data.description, 'Descripción'),
-        assignedDate,
-        dueDate,
-      };
+      const data = record(input);
+      requireRule(
+        data.groupId === undefined || data.groupId === group.id,
+        'La tarea no se puede trasladar a otro grupo.',
+      );
+      const value = { ...audit(), groupId: group.id, ...assignmentFields(input, year) };
       await this.db.assignments.add(value);
       return value;
+    });
+  }
+
+  updateAssignment(context: GroupContext, assignmentId: string, input: unknown) {
+    return this.write(async () => {
+      const { year, group } = await this.group(context);
+      requireRule(
+        !year.archived && !group.archived,
+        'Reactiva el ciclo y el grupo antes de guardar tareas.',
+      );
+      const previous = await this.assignment(context, assignmentId);
+      const data = record(input);
+      requireRule(
+        data.groupId === undefined || data.groupId === previous.groupId,
+        'La tarea no se puede trasladar a otro grupo.',
+      );
+      const fields = assignmentFields(input, year);
+      if (fields.assignedDate !== previous.assignedDate) {
+        const submissions = await this.db.submissions
+          .where('assignmentId')
+          .equals(previous.id)
+          .toArray();
+        for (const submission of submissions) {
+          const enrollment = await this.db.enrollments.get(submission.enrollmentId);
+          requireRule(
+            enrollment &&
+              enrollment.groupId === group.id &&
+              includesDate(enrollment, fields.assignedDate),
+            'La nueva asignación dejaría entregas fuera de su población. Corrige primero el historial de matrícula.',
+          );
+        }
+      }
+      if (
+        Object.entries(fields).every(
+          ([key, value]) => previous[key as keyof typeof previous] === value,
+        )
+      )
+        return previous;
+      const value = { ...previous, ...fields, updatedAt: new Date().toISOString() };
+      await this.db.assignments.put(value);
+      return value;
+    });
+  }
+
+  private async assignment(context: GroupContext, assignmentId: unknown) {
+    await this.group(context);
+    const assignment = await this.db.assignments.get(uuid(assignmentId));
+    requireRule(
+      assignment && assignment.groupId === context.groupId,
+      'La tarea no existe o pertenece a otro grupo.',
+    );
+    return assignment;
+  }
+
+  loadAssignment(context: GroupContext, assignmentId: string) {
+    return this.read(async () => {
+      const assignment = await this.assignment(context, assignmentId);
+      const enrollments = await this.db.enrollments
+        .where('groupId')
+        .equals(context.groupId)
+        .toArray();
+      const submissions = await this.db.submissions
+        .where('assignmentId')
+        .equals(assignment.id)
+        .toArray();
+      const rows: { enrollment: Enrollment; student: Student; submission: Submission | null }[] =
+        [];
+      for (const enrollment of enrollments) {
+        const student = await this.db.students.get(enrollment.studentId);
+        if (student && includesDate(enrollment, assignment.assignedDate)) {
+          rows.push({
+            enrollment,
+            student,
+            submission: submissions.find((item) => item.enrollmentId === enrollment.id) ?? null,
+          });
+        }
+      }
+      rows.sort(
+        (a, b) =>
+          `${a.student.lastName} ${a.student.firstName}`.localeCompare(
+            `${b.student.lastName} ${b.student.firstName}`,
+            'es',
+          ) || a.enrollment.id.localeCompare(b.enrollment.id),
+      );
+      const incidents = [];
+      for (const submission of submissions.filter(
+        (item) => !rows.some((member) => member.enrollment.id === item.enrollmentId),
+      )) {
+        const enrollment = await this.db.enrollments.get(submission.enrollmentId);
+        const student = enrollment ? await this.db.students.get(enrollment.studentId) : undefined;
+        const reason = !enrollment
+          ? 'Matrícula inexistente'
+          : enrollment.groupId !== context.groupId
+            ? 'Matrícula de otro grupo'
+            : !student
+              ? 'Ficha inexistente'
+              : 'Fuera del intervalo de matrícula';
+        incidents.push({ submission, enrollment, student, reason });
+      }
+      return { assignment, rows, incidents };
+    });
+  }
+
+  saveSubmissions(
+    context: GroupContext,
+    assignmentId: string,
+    inputs: unknown,
+    confirmedCorrections: unknown = false,
+    expectedAssignment?: unknown,
+  ) {
+    return this.write(async () => {
+      const { year, group } = await this.group(context);
+      requireRule(
+        !year.archived && !group.archived,
+        'Reactiva el ciclo y el grupo antes de guardar entregas.',
+      );
+      const assignment = await this.assignment(context, assignmentId);
+      dateInYear(assignment.assignedDate, year);
+      if (expectedAssignment !== undefined) {
+        const expected = record(expectedAssignment);
+        requireRule(
+          (
+            [
+              'id',
+              'groupId',
+              'assignedDate',
+              'title',
+              'description',
+              'dueDate',
+              'createdAt',
+              'updatedAt',
+            ] as const
+          ).every((key) => expected[key] === assignment[key]),
+          'La tarea cambió en otra ventana. Revisa los datos guardados.',
+        );
+      }
+      requireRule(Array.isArray(inputs) && inputs.length > 0, 'Modifica al menos una entrega.');
+      const confirmed = flag(confirmedCorrections, false);
+      const seen = new Set<string>();
+      const result = [];
+      for (const input of inputs) {
+        const data = record(input);
+        const enrollmentId = uuid(data.enrollmentId);
+        requireRule(!seen.has(enrollmentId), 'La matrícula está repetida en el lote.');
+        seen.add(enrollmentId);
+        const { enrollment } = await this.enrollment({ ...context, enrollmentId });
+        requireRule(
+          includesDate(enrollment, assignment.assignedDate),
+          'La matrícula está fuera de la población de la tarea. Corrige primero el historial.',
+        );
+        requireRule(
+          await this.db.students.get(enrollment.studentId),
+          'No se pudo resolver la ficha del alumno.',
+        );
+        const status = choice(data.status, submissionStates, 'Entrega');
+        const comment = optionalText(data.comment, 'Comentario');
+        const current = await this.db.submissions
+          .where('[assignmentId+enrollmentId]')
+          .equals([assignment.id, enrollmentId])
+          .first();
+        if (current && current.status === status && current.comment === comment) {
+          result.push(current);
+          continue;
+        }
+        requireRule(
+          current ? matchesSubmission(data.expected, current) : data.expected === null,
+          'La entrega cambió en otra ventana. Conservamos tu borrador; revisa los datos guardados.',
+        );
+        if (current) {
+          requireRule(
+            confirmed,
+            'Confirma la corrección de las entregas existentes antes de guardar.',
+          );
+          const value = { ...current, status, comment, updatedAt: new Date().toISOString() };
+          await this.db.submissions.put(value);
+          result.push(value);
+        } else {
+          result.push(
+            await this.createSubmission(
+              { ...context, enrollmentId },
+              { assignmentId: assignment.id, status, comment },
+            ),
+          );
+        }
+      }
+      return result;
     });
   }
 
@@ -645,12 +837,21 @@ export class Repositories {
 
   createSubmission(context: EnrollmentContext, input: unknown) {
     return this.write(async () => {
-      const { group, enrollment } = await this.enrollment(context);
+      const { year, group, enrollment } = await this.enrollment(context);
       const data = record(input);
       const assignment = await this.db.assignments.get(uuid(data.assignmentId));
       requireRule(
         assignment && assignment.groupId === group.id,
         'La tarea no existe o pertenece a otro grupo.',
+      );
+      requireRule(
+        !year.archived && !group.archived,
+        'Reactiva el ciclo y el grupo antes de guardar entregas.',
+      );
+      dateInYear(assignment.assignedDate, year);
+      requireRule(
+        includesDate(enrollment, assignment.assignedDate),
+        'La matrícula está fuera de la población de la tarea.',
       );
       const value = {
         ...audit(),
