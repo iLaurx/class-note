@@ -116,3 +116,25 @@ Se conserva Dexie v1 y studentNotes.[enrollmentId+date] no único. Fecha local r
 Alta y edición validan referencias, ficha, contexto activo e intervalo dentro de la transacción. UUID, createdAt y enrollmentId inmutables; updatedAt cambia solo al modificar campos normalizados. Comparación optimista de identidad, valores y auditoría tanto en edición como en borrado; no sobrescribe cambios concurrentes. Eliminar exige confirmación explícita y solo elimina la nota, nunca alumno/matrícula. No se exige un intervalo temporal para borrar una nota previa: permite retirarla aunque una corrección posterior del intervalo la haya dejado fuera.
 
 Consulta del grupo explícito en instantánea transaccional; incluye historial válido inactivo/archivado, búsqueda por nombre/texto y filtros por matrícula/categoría/rango inclusivo. Fecha descendente y UUID ascendente. No cambia la edición de ciclos/matrículas ni modifica registros anteriores automáticamente. Sin contactos, adjuntos, métricas, exportación ni conexiones con otros módulos. Detalles: docs/OBSERVATIONS.md.
+
+## CN-012: contrato de respaldo, sin migración
+
+Dexie v1 conserva las diez stores y sus índices. El archivo JSON ClassNote contiene
+format=classnote-backup, formatVersion=1, appVersion=0.1.0, schemaVersion=1,
+createdAt UTC y data con la exportación completa de dexie-export-import 4.4.1.
+Solo se acepta esa combinación exacta; formatos/esquemas futuros se rechazan.
+
+Restaurar conserva UUID, createdAt, updatedAt, campos opcionales y relaciones;
+reemplaza las diez stores en una transacción única después de validar en base
+temporal y guardar respaldo previo. Un fallo conserva datos y selección anteriores.
+No normaliza textos, recorta fechas, fusiona registros ni genera identidades nuevas.
+Se rechazan campos desconocidos, referencias inválidas, auditoría inválida,
+índices/conteos incompatibles e historia fuera del intervalo actual. La única
+anotación Typeson permitida es undef en opcionales conocidos.
+
+Las preferencias de selección siguen el contrato CN-004: referencias ausentes,
+archivadas o cruzadas dejan el grupo sin seleccionar, conservando el ciclo válido;
+si falta también el ciclo, ambos quedan sin seleccionar. Este saneamiento se hace
+al recargar contexto tras el commit, nunca antes de confirmar la restauración.
+Sin otras preferencias, campos, migraciones ni políticas de módulos nuevas.
+Detalles y límites: [BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md).

@@ -28,7 +28,7 @@
 
 ## Decisiones pendientes
 - Nombre y ubicación final del perfil persistente WebView2 (pruebas por instalador/actualización).
-- Mecanismo robusto de backup/restauración atómica y estrategia ante interrupciones.
+- Recuperación ante corte eléctrico y fallos de disco (CN-013); restauración transaccional: ADR-015.
 - Licencia MIT vs otra, antes de publicar.
 - Políticas exactas de métricas de asistencia y faltas justificadas.
 - Experiencia de desinstalación y preservación de datos.
@@ -87,3 +87,48 @@
 - Matrículas y asistencia de hoy reutilizan los intervalos inclusivos de CN-006, incluso historia inactiva/archivada; fuera del ciclo se explica la ausencia de población/asistencia. Cuatro estados separados y pendientes de captura, sin porcentajes.
 - Agenda de presentación: siete días de asignaciones hasta hoy y siete días de entregas desde hoy, ambos inclusivos. Hasta cinco filas, total visible y acceso al listado completo. Pendientes según CN-007 y población en assignedDate; incidencias conservadas y señaladas. Sin nueva política de evaluación/vencimiento.
 - Lecturas de la semana civil completa de CN-008: minutos y registros, incluidos ceros; ausencia de entradas explícita. Fechas locales, refresco al cambiar día, estados de carga/error/reintento y respuestas obsoletas descartadas. Alcance y límites: [DASHBOARD.md](docs/DASHBOARD.md).
+
+## ADR-014 — Reporte de contexto y destino elegido (CN-011)
+
+- Instantánea de solo lectura para ciclo/grupo explícitos, sin schema nuevo.
+  Alumnos incluye todas las matrículas sin aplicar rango; asistencia y lecturas por
+  fecha, tareas por asignación, extremos inclusivos. Fechas como texto DD/MM/AAAA.
+  Pendientes derivados sin escritura; entregas históricas del grupo conservadas.
+- ExcelJS genera cuatro hojas con cadenas neutralizadas, excluyendo observaciones
+  privadas/configuración. No es respaldo restaurable.
+- Comando Rust recibe bytes, abre diálogo y escribe en su resultado local; sin
+  ruta suministrada por JS ni permisos generales de filesystem. Plugin dialog solo
+  en Rust y API core en frontend; Rust mínimo 1.90. Sin cambios de origen/perfil/CSP.
+- Contrato, dependencias, permisos y evidencia: [EXCEL_EXPORT.md](docs/EXCEL_EXPORT.md).
+- El adaptador NativeFileDialogs inicializa únicamente el estado Rust del plugin:
+  no instala su script que transforma window.confirm en Promise ni expone sus IPC.
+  Conserva las confirmaciones existentes; serde_json se declara explícitamente para
+  la firma Plugin, sin nueva librería en runtime respecto al Tauri transitivo.
+
+## ADR-015 — Respaldo versionado y reemplazo atómico (CN-012)
+
+- dexie-export-import 4.4.1 exporta las diez tablas, incluidas vacías, dentro de un
+  sobre JSON ClassNote v1 con appVersion 0.1.0, schemaVersion 1 y createdAt UTC.
+  Compatibilidad exacta inicial, sin importar estructuras futuras ni migraciones
+  ficticias. Se conserva Dexie v1, UUID, auditoría, origen y perfil WebView2.
+- Entrada unknown estricta, conteos y reglas de campos/referencias/intervalos;
+  importación en base temporal aislada con índices v1, igualdad exacta y validación
+  repetida. Solo se admite Typeson undef en opcionales conocidos. Datos incompatibles
+  o incidencias históricas inválidas se rechazan, sin reparaciones silenciosas.
+- Previsualización, confirmación expresa y respaldo previo obligatorio elegido y
+  guardado antes de tocar la base activa. Cancelación/error abortan; archivos no se
+  eliminan. Comparación de la base con la instantánea respaldada dentro de la
+  transacción final impide perder cambios ocurridos durante el diálogo.
+- Reemplazo en una transacción rw de diez tablas, con rollback total ante excepción.
+  Carga posterior separada del commit: ante error solo se reintenta lectura. Contexto
+  inválido se descarta con el mecanismo existente, sin seleccionar sustituto.
+- Se reutiliza el adaptador Rust de CN-011 con open_backup/save_backup, sin rutas
+  suministradas por JS ni permisos generales. Archivos UTF-8 limitados a 100 MiB;
+  guardado mediante temporal exclusivo + sync_all + rename en el directorio elegido.
+  Sin nuevas dependencias Rust, capabilities ni cambios de CSP. El respaldo no está
+  cifrado. No promete durabilidad ante corte, instalación o desinstalación.
+- Contrato, pruebas, evidencia y límites: [BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md).
+- Auditoría: se validan ambos timestamps UTC y se conservan exactamente. No se
+  introduce una restricción de orden entre createdAt y updatedAt: una corrección
+  del reloj local puede producir modificación anterior a creación; el modelo de
+  escritura actual tampoco impone monotonicidad.

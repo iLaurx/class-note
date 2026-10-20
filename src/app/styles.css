@@ -451,6 +451,16 @@
   width: auto;
   justify-self: start;
 }
+.school-form .backup-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.school-form .backup-confirmation input {
+  width: auto;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
 .attendance {
   padding-block: 16px;
 }

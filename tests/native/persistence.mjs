@@ -16,13 +16,14 @@ import {
 import assert from 'node:assert/strict';
 import { spawn, execFile } from 'node:child_process';
 import { once } from 'node:events';
-import { access, mkdir, mkdtemp, readdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { build } from 'vite';
 import { chromium, expect } from '@playwright/test';
+import ExcelJS from 'exceljs';
 import {
   createYearsAndGroups,
   verifySelection,
@@ -36,6 +37,8 @@ await access(exe);
 const output = path.join(root, 'test-results/native');
 await mkdir(output, { recursive: true });
 const profile = await mkdtemp(path.join(output, 'webview2-'));
+const backupFile = path.join(output, `respaldo-${path.basename(profile)}.json`);
+const previousBackupFile = path.join(output, `respaldo-previo-${path.basename(profile)}.json`);
 const bundled = await build({
   configFile: false,
   logLevel: 'error',
@@ -160,7 +163,9 @@ async function launch() {
 }
 
 async function verifyDashboard(session, stage) {
-  await session.page.clock.setFixedTime(new Date(2026, 9, 19, 23, 30));
+  await session.page.clock.setFixedTime(new Date(2026, 9, 19, 12));
+  // Inicio may already be mounted after launch: refresh its local day on focus.
+  await session.evaluate("window.dispatchEvent(new Event('focus'))");
   const snapshot = await session.evaluate('ClassNoteProbe.snapshot()');
   await session.page
     .getByRole('navigation')
@@ -203,6 +208,21 @@ try {
   await recordNotes(first.page);
   await verifyDashboard(first, 'before-restart');
   before = await first.evaluate('ClassNoteProbe.snapshot()');
+  if (process.env.CN012_BACKUP_UI === '1') {
+    await first.page
+      .getByRole('navigation')
+      .getByRole('link', { name: 'Configuración', exact: true })
+      .click();
+    console.log(`CN012: guardar respaldo sintético en ${backupFile}`);
+    await first.page
+      .getByRole('button', { name: 'Guardar respaldo completo', exact: true })
+      .click();
+    await first.page
+      .getByText('Respaldo completo guardado.', { exact: true })
+      .waitFor({ timeout: 240000 });
+    assert.deepEqual(await first.evaluate('ClassNoteProbe.snapshot()'), before);
+    await first.page.screenshot({ path: path.join(output, 'backup-exported.png') });
+  }
   const student = before.students.find((s) => s.firstName === 'Ána editada');
   assert.ok(student);
   const history = before.enrollments.filter((e) => e.studentId === student.id);
@@ -272,6 +292,71 @@ try {
     readingAfterWrite.readingLogs.filter((row) => row.title === 'Lectura offline posterior').length,
     1,
   );
+  // Opt-in desktop checkpoint: a human or Computer Use chooses this synthetic destination
+  // in the real Windows dialog, then cancels the second dialog. No production test hooks.
+  if (process.env.CN011_EXPORT_UI === '1') {
+    await second.page
+      .getByRole('navigation')
+      .getByRole('link', { name: 'Reportes', exact: true })
+      .click();
+    await second.page.getByLabel('Desde', { exact: true }).fill('2026-10-19');
+    await second.page.getByLabel('Hasta', { exact: true }).fill('2026-10-20');
+    await second.page.screenshot({
+      path: path.join(output, 'reports-after-restart.png'),
+      fullPage: true,
+    });
+    const reportPath = path.join(output, 'reporte-sintetico.xlsx');
+    console.log(`CN011: elegir destino en diálogo nativo: ${reportPath}`);
+    await second.page.getByRole('button', { name: 'Exportar Excel' }).click();
+    await second.page
+      .getByText('Reporte Excel guardado.', { exact: true })
+      .waitFor({ timeout: 240000 });
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.readFile(reportPath);
+    assert.deepEqual(
+      book.worksheets.map((sheet) => sheet.name),
+      ['Alumnos', 'Asistencia', 'Tareas', 'Lecturas'],
+    );
+    const selection = readingAfterWrite.appSettings.find((row) => row.key === 'work.groupId').value;
+    const members = readingAfterWrite.enrollments.filter((row) => row.groupId === selection);
+    assert.equal(book.getWorksheet('Alumnos').rowCount, members.length + 1);
+    assert.ok(
+      book.getWorksheet('Alumnos').getColumn(2).values.includes('Pérez de prueba, Ána editada'),
+    );
+    for (const sheet of book.worksheets)
+      sheet.eachRow((row) =>
+        row.eachCell((cell) => assert.notEqual(cell.type, ExcelJS.ValueType.Formula)),
+      );
+    assert.deepEqual(await second.evaluate('ClassNoteProbe.snapshot()'), readingAfterWrite);
+    console.log('CN011: libro abierto/verificado con ExcelJS; cancelar el segundo diálogo nativo.');
+    await second.page.getByRole('button', { name: 'Exportar Excel' }).click();
+    await second.page
+      .getByText('Exportación cancelada. No se escribió ningún archivo.', { exact: true })
+      .waitFor({ timeout: 240000 });
+    await second.page.screenshot({
+      path: path.join(output, 'reports-cancelled.png'),
+      fullPage: true,
+    });
+    await writeFile(
+      path.join(output, 'excel-result.json'),
+      JSON.stringify(
+        {
+          success: true,
+          reportPath,
+          sheets: book.worksheets.map((sheet) => ({ name: sheet.name, rows: sheet.rowCount })),
+          nativeSave: true,
+          nativeCancel: true,
+          snapshotUnchanged: true,
+        },
+        null,
+        2,
+      ),
+    );
+    await second.page
+      .getByRole('navigation')
+      .getByRole('link', { name: 'Lectura en casa', exact: true })
+      .click();
+  }
   for (const log of before.readingLogs)
     assert.deepEqual(
       readingAfterWrite.readingLogs.find((row) => row.id === log.id),
@@ -410,7 +495,79 @@ try {
       2,
     ),
   );
+  if (process.env.CN012_BACKUP_UI === '1') {
+    const priorRestore = await second.evaluate('ClassNoteProbe.snapshot()');
+    const exportedSource = await readFile(backupFile, 'utf8');
+    assert.deepEqual(
+      await second.evaluate(
+        `ClassNoteProbe.verifyRestoreRollback(${JSON.stringify(exportedSource)})`,
+      ),
+      { rollback: true, selectionPreserved: true },
+    );
+    await second.page
+      .getByRole('navigation')
+      .getByRole('link', { name: 'Configuración', exact: true })
+      .click();
+    console.log(`CN012: abrir ${backupFile}`);
+    await second.page.getByRole('button', { name: 'Elegir respaldo para restaurar' }).click();
+    await second.page
+      .getByRole('region', { name: 'Previsualización del respaldo' })
+      .waitFor({ timeout: 240000 });
+    await second.page.screenshot({ path: path.join(output, 'backup-preview.png') });
+    assert.deepEqual(await second.evaluate('ClassNoteProbe.snapshot()'), priorRestore);
+    await second.page.getByLabel('Confirmo reemplazar').check();
+    console.log(`CN012: guardar respaldo previo en ${previousBackupFile}`);
+    await second.page.getByRole('button', { name: 'Guardar respaldo previo y restaurar' }).click();
+    await second.page
+      .getByText('Restauración completada. Contexto y vistas recargados.', { exact: true })
+      .waitFor({ timeout: 240000 });
+    assert.deepEqual(await second.evaluate('ClassNoteProbe.snapshot()'), before);
+    const previousFile = await readFile(previousBackupFile, 'utf8');
+    assert.deepEqual(
+      await second.evaluate(`ClassNoteProbe.inspectBackup(${JSON.stringify(previousFile)})`),
+      priorRestore,
+    );
+    await second.page.screenshot({ path: path.join(output, 'backup-restored.png') });
+    await writeFile(path.join(output, 'backup-before-restore.json'), JSON.stringify(priorRestore));
+  }
 } finally {
   await second.stop();
+}
+if (process.env.CN012_BACKUP_UI === '1') {
+  const third = await launch();
+  try {
+    assert.notEqual(third.pid, second.pid);
+    assert.deepEqual(await third.evaluate('ClassNoteProbe.snapshot()'), before);
+    await verifySelection(third.page);
+    await verifyStudentHistory(third.page);
+    await verifyAttendance(third.page);
+    await verifySubmissions(third.page);
+    await verifyReading(third.page);
+    await verifyNotes(third.page);
+    await third.page.screenshot({ path: path.join(output, 'backup-after-restart.png') });
+    assert.deepEqual(third.requests, []);
+    await writeFile(
+      path.join(output, 'backup-result.json'),
+      JSON.stringify(
+        {
+          success: true,
+          profile,
+          firstPid: first.pid,
+          secondPid: second.pid,
+          thirdPid: third.pid,
+          exactTenTablesRestored: true,
+          nativeTransactionRollbackVerified: true,
+          relationsAndSelectionVerifiedByUI: true,
+          offline: true,
+          externalPageRequests: third.requests,
+          checkedAt: new Date().toISOString(),
+        },
+        null,
+        2,
+      ),
+    );
+  } finally {
+    await third.stop();
+  }
 }
 console.log(`Persistencia nativa verificada. Evidencia: ${path.join(output, 'result.json')}`);

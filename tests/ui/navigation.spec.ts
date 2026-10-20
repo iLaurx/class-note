@@ -48,7 +48,8 @@ for (const width of [1100, 768, 360]) {
           await expect(
             page.getByRole('heading', { name: 'Observaciones del grupo' }),
           ).toBeVisible();
-        else await expect(page.getByText('EN PREPARACIÓN', { exact: true })).toBeVisible();
+        else if (label === 'Reportes')
+          await expect(page.getByRole('heading', { name: 'Reportes del grupo' })).toBeVisible();
         await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
       }
       expect(

@@ -9,6 +9,7 @@ export function useStorage() {
   return {
     state,
     retry: service.initialize,
+    backup: state.status === 'ready' ? service.backup : undefined,
     repositories: state.status === 'ready' ? service.repositories : undefined,
   };
 }

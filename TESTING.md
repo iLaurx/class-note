@@ -1,5 +1,57 @@
 # Plan de pruebas
 
+## CN-012: respaldo completo y restauración
+
+- tests/db/backup.test.ts: diez tablas vacías/relacionadas, igualdad exacta de
+  valores/UUID/auditoría, conteos, corrupción/truncado/versiones, referencias y campos,
+  índices únicos en base temporal, cancelaciones y errores previos, conflicto durante
+  guardado, rollback real intermedio, selección válida/inválida y recuperación previa.
+- tests/ui/backup.spec.ts: cinco pruebas de previsualización, confirmación y
+  guardado previo obligatorio, cancelaciones sin escrituras/éxito, fallos recuperables,
+  relectura posterior sin reimportación, offline y 1100/768/360 px con foco/teclado.
+- Checkpoint nativo `$env:CN012_BACKUP_UI='1'; pnpm test:native`: exportar desde UI
+  en destino sintético elegido, cerrar/reabrir mismo release/perfil aislado, restaurar
+  con diálogo real y respaldo previo, cerrar/reabrir por tercera vez y verificar las
+  diez tablas exactas, selección y relaciones mediante UI. Evidencia y límites:
+  [BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md). Ejecutar después de la suite UI.
+- No cambia schema, origen, perfil, red del equipo ni capacidades generales; no usa
+  datos reales. Instalación/actualización/desinstalación y corte quedan en CN-013.
+
+Resultados CN-012 (20/10/2026): lint, formato, typecheck, build y tauri:build aprobados.
+63/63 DB y 2/2 distribución; suite UI 62/64 (5/5 CN-012). Fallos pendientes en
+notes.spec.ts:235 y reading.spec.ts:209, al esperar error simulado de consulta inicial;
+reproducidos aisladamente, sin cambiar módulos ni pruebas ajenos. No se declara
+aprobada la suite global. Prueba nativa final con CN012_BACKUP_UI=1 aprobada: tres
+PIDs distintos (33124/26844/23740), rollback real intermedio en WebView2 sin pérdida,
+exportación/restauración desde diálogos y respaldo previo real validado, tercera
+apertura con igualdad exacta de diez tablas y relaciones/selección por UI, offline
+y cero solicitudes externas observadas. Capturas de tres resoluciones y nativas
+inspeccionadas. Incidencias corregidas de foco y auditoría/reloj, archivos y límites:
+[BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md). CN-002/CN-013 permanecen pendientes.
+
+## CN-011: reporte Excel
+
+- tests/db/excel-export.test.ts: tres pruebas integradas, XLSX real reabierto con
+  ExcelJS; cuatro hojas/valores/orden, fechas locales/rango inclusivo, opcionales,
+  acentos/ceros, vacíos/pendientes, aislamiento y neutralización de fórmulas.
+- tests/ui/reports.spec.ts: cuatro pruebas de rango, teclado, tres resoluciones,
+  offline, error/reintento/cancelación sin falso éxito y doble envío. Fixtures/IPC
+  solo en tests. Se actualiza únicamente placeholder de Reportes en navegación.
+- Prueba nativa existente ampliada con checkpoint opcional CN011_EXPORT_UI=1:
+  elegir destino sintético y cancelar segundo diálogo; abrir XLSX con ExcelJS,
+  verificar filas y snapshot idéntico de diez tablas tras reinicio del release.
+  Capturas y archivo en test-results/native, fuera de Git. Ejecutar después de UI.
+- Resultados exactos, incidencias ambientales, apertura compatible y límites:
+  [EXCEL_EXPORT.md](docs/EXCEL_EXPORT.md). Mantener todos los checks anteriores.
+
+Resultados CN-011 (20/10/2026): lint/formato/typecheck/build y empaquetado aprobados;
+58 DB + 2 distribución aprobadas. Diagnóstico UI con Chrome: 49/59 (incluidas 4/4
+CN-011); pendientes ambientales por inyección AdGuard/conexión en consola, sin
+relajar aserciones. Test:native con checkpoint aprobado, cierre/reapertura real y
+snapshot exacto, diálogo de guardado/cancelación y XLSX verificado con ExcelJS y
+Microsoft Excel (cuatro hojas inspeccionadas). Detalle de intentos, corrección de
+confirmaciones del plugin y refresco del reloj sintético en EXCEL_EXPORT.md.
+
 ## Tests automatizados
 - Dominio: validaciones de fechas, minutos, ciclos, estados y conteos.
 - Dexie: pruebas con IndexedDB simulado (`fake-indexeddb`) **más** pruebas de integración reales en WebView2.

@@ -1,12 +1,14 @@
 import { ClassNoteDatabase } from './database.ts';
 import { Repositories } from './repositories.ts';
 import { storageOperation } from './errors.ts';
+import { BackupService } from '../services/backup/backupService.ts';
 
 export type StorageState =
   { status: 'loading' } | { status: 'ready' } | { status: 'error'; message: string };
 
 export class StorageService {
   readonly repositories: Repositories;
+  readonly backup: BackupService;
   private readonly database: ClassNoteDatabase;
   private state: StorageState = { status: 'loading' };
   private pending: Promise<void> | undefined;
@@ -15,6 +17,7 @@ export class StorageService {
   constructor(database = new ClassNoteDatabase()) {
     this.database = database;
     this.repositories = new Repositories(database);
+    this.backup = new BackupService(database);
   }
 
   getSnapshot = (): StorageState => this.state;

@@ -1,9 +1,10 @@
 import { Observations } from '../features/notes/Observations';
+import { Reports } from '../features/reports/Reports';
 import { Assignments } from '../features/assignments/Assignments';
 import { Reading } from '../features/reading/Reading';
 import { Students } from '../features/students/Students';
 import { Attendance } from '../features/attendance/Attendance';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Header } from '../components/layout/Header';
 import { Sidebar } from '../components/layout/Sidebar';
 import { Dashboard } from '../features/dashboard/Dashboard';
@@ -12,9 +13,11 @@ import { useNavigation } from './useNavigation';
 import { StorageNotice } from './StorageNotice';
 import { WorkContextSelector } from './WorkContextSelector';
 import { SchoolManagement } from '../features/school-years/SchoolManagement';
+import { BackupRestore } from '../features/settings/BackupRestore';
 
 export function App() {
   const current = useNavigation();
+  const [settingsRevision, setSettingsRevision] = useState(0);
   const mainRef = useRef<HTMLElement>(null);
   const previousSection = useRef(current?.id);
 
@@ -57,7 +60,12 @@ export function App() {
         ) : current?.id === 'notes' ? (
           <Observations />
         ) : current?.id === 'settings' ? (
-          <SchoolManagement />
+          <>
+            <BackupRestore onRestored={() => setSettingsRevision((value) => value + 1)} />
+            <SchoolManagement key={settingsRevision} />
+          </>
+        ) : current?.id === 'reports' ? (
+          <Reports />
         ) : (
           <ModulePlaceholder section={current} />
         )}

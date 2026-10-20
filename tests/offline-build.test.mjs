@@ -20,7 +20,7 @@ test('el HTML distribuido solo carga recursos locales empaquetados', async () =>
   assert.doesNotMatch(css.join('\n'), /@import|url\(\s*["']?(?:https?:)?\/\//i);
 });
 
-test('la aplicación distribuida bloquea red y no concede permisos nativos', async () => {
+test('la aplicación distribuida bloquea red y no concede permisos generales de plugins', async () => {
   const config = JSON.parse(
     await readFile(new URL('../src-tauri/tauri.conf.json', import.meta.url), 'utf8'),
   );

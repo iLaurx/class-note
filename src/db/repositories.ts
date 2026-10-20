@@ -1,4 +1,5 @@
 import { dashboardSummary, dashboardPeriod } from '../features/dashboard/dashboardDomain.ts';
+import { reportRange } from '../services/export/reportRange.ts';
 import { noteFields, matchesNote } from '../features/notes/notesDomain.ts';
 import {
   assignmentFields,
@@ -115,6 +116,50 @@ export class Repositories {
         .anyOf(assignments.map((row) => row.id))
         .toArray();
       return dashboardSummary(year, today, enrollments, attendance, assignments, submissions, logs);
+    });
+  }
+  loadGroupReport(context: GroupContext, fromInput: unknown, toInput: unknown) {
+    return this.read(async () => {
+      const { year, group } = await this.group(context);
+      const range = reportRange(fromInput, toInput);
+      const enrollments = await this.db.enrollments.where('groupId').equals(group.id).toArray();
+      const ids = enrollments.map((row) => row.id);
+      const students = await this.db.students.bulkGet(enrollments.map((row) => row.studentId));
+      requireRule(
+        students.every((row) => row !== undefined),
+        'Falta la ficha de un alumno del grupo.',
+      );
+      const assignments = await this.db.assignments
+        .where('groupId')
+        .equals(group.id)
+        .filter((row) => row.assignedDate >= range.from && row.assignedDate <= range.to)
+        .toArray();
+      const attendance = await this.db.attendance
+        .where('enrollmentId')
+        .anyOf(ids)
+        .filter((row) => row.date >= range.from && row.date <= range.to)
+        .toArray();
+      const readings = await this.db.readingLogs
+        .where('enrollmentId')
+        .anyOf(ids)
+        .filter((row) => row.date >= range.from && row.date <= range.to)
+        .toArray();
+      const submissions = await this.db.submissions
+        .where('assignmentId')
+        .anyOf(assignments.map((row) => row.id))
+        .filter((row) => ids.includes(row.enrollmentId))
+        .toArray();
+      return {
+        year,
+        group,
+        range,
+        enrollments,
+        students: students.filter((row) => row !== undefined),
+        assignments,
+        attendance,
+        readings,
+        submissions,
+      };
     });
   }
   private async enrollment(context: EnrollmentContext) {

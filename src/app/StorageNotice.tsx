@@ -16,7 +16,7 @@ export function StorageNotice() {
       {state.status === 'ready' && <p role="status">Almacenamiento local listo.</p>}
       <p>
         Los datos se guardan en este equipo. Protege tu sesión de Windows y conserva respaldos fuera
-        de la aplicación. La función de respaldos está en preparación.
+        de la aplicación. Puedes guardarlos y restaurarlos desde Configuración.
       </p>
     </aside>
   );
