@@ -1,4 +1,10 @@
 import { createStudentHistory, verifyStudentHistory } from '../helpers/student-flow.ts';
+import {
+  prepareAttendanceStudents,
+  recordAttendance,
+  verifyAttendance,
+  statusField,
+} from '../helpers/attendance-flow.ts';
 import assert from 'node:assert/strict';
 import { spawn, execFile } from 'node:child_process';
 import { once } from 'node:events';
@@ -156,6 +162,8 @@ try {
   await createYearsAndGroups(first.page);
   await verifySelection(first.page);
   await createStudentHistory(first.page);
+  await prepareAttendanceStudents(first.page);
+  await recordAttendance(first.page);
   before = await first.evaluate('ClassNoteProbe.snapshot()');
   const student = before.students.find((s) => s.firstName === 'Ána editada');
   assert.ok(student);
@@ -182,6 +190,17 @@ try {
     path: path.join(output, 'students-after-restart.png'),
     fullPage: true,
   });
+  await verifyAttendance(second.page);
+  await second.page.screenshot({
+    path: path.join(output, 'attendance-after-restart.png'),
+    fullPage: true,
+  });
+  await second.page.getByLabel('Fecha de asistencia', { exact: true }).fill('2026-10-20');
+  await statusField(second.page, 0).selectOption('late');
+  await second.page.getByRole('button', { name: 'Guardar asistencia', exact: true }).click();
+  await second.page.getByText('Asistencia guardada. 3 sin registrar.', { exact: true }).waitFor();
+  const afterWrite = await second.evaluate('ClassNoteProbe.snapshot()');
+  assert.equal(afterWrite.attendance.length, before.attendance.length + 1);
   await verifyArchiveFlow(second.page);
   const archived = await second.evaluate('ClassNoteProbe.snapshot()');
   for (const table of [
@@ -193,7 +212,7 @@ try {
     'readingLogs',
     'studentNotes',
   ])
-    assert.deepEqual(archived[table], before[table]);
+    assert.deepEqual(archived[table], afterWrite[table]);
   for (const label of [
     'Alumnos',
     'Asistencia',
@@ -229,6 +248,11 @@ try {
         preservedTables: Object.keys(before),
         exactSnapshotPreserved: true,
         offlineWriteAfterRestart: true,
+        uiAttendancePartialCompletionCorrection: true,
+        uiAttendanceStatesNotesCountsPreserved: true,
+        uiAttendanceDateGroupIsolation: true,
+        offlineAttendanceWriteAfterRestart: true,
+        attendanceBeforeRestart: before.attendance,
         uiCreatedYears: 2,
         uiCreatedGroups: 4,
         uiSelectionAndEditPreserved: true,

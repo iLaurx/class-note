@@ -49,3 +49,12 @@
 - La lista consulta solo el grupo explícito. Las fichas globales se consultan intencionalmente para alta/matriculación o detalle; permiten distinguir homónimos mediante UUID, fecha de creación y pertenencias. No se añaden datos personales.
 - El cambio de contexto desmonta formularios/detalles y avisa; las escrituras reciben el destino explícito. Respuestas antiguas se ignoran. Bloqueo inmediato previene doble envío; un fallo de consulta posterior a una escritura confirmada no invita a repetir el alta.
 - Esquema v1, dependencias, permisos, perfil, identifier y CSP sin cambios. No hay CI ni módulos de seguimiento nuevos.
+
+## ADR-009 — Asistencia por día, borradores y concurrencia (CN-006)
+
+- Se conserva Dexie v1. El día usa fecha local real y contexto explícito; la población depende solo del intervalo inclusivo de matrícula, incluso inactiva o con ficha archivada. La ausencia de salida no se infiere de updatedAt.
+- «Sin registrar» pertenece a UI y no produce filas. Se permite captura parcial; notas sin estado siguen pendientes. No existe borrado de asistencia en esta etapa.
+- Guardado diario transaccional sobre operaciones existentes; validaciones temporales, relaciones, archivo de ciclo/grupo y escrituras comparten transacción. Solo se envían cambios, conservando UUID/createdAt y actualizando updatedAt en correcciones. Confirmación única con cantidad de correcciones.
+- Concurrencia optimista por instantánea de campos e identidad, no solo timestamps. Rechazo explícito del lote completo ante conflicto; valores ya idénticos son idempotentes. Sin sobrescritura silenciosa de filas intactas.
+- Borrador exclusivamente en memoria, asociado a ciclo/grupo/fecha. Guardas pequeñas para navegación hash/historial y selector de contexto; sin router adicional ni almacenamiento alternativo. Consultas obsoletas descartadas y doble envío bloqueado. Errores posteriores al commit piden releer, sin volver a enviar escrituras.
+- Recuentos diarios separados para los cuatro estados y pendientes. Porcentajes por periodo aplazados hasta definir denominadores, días sin captura y tratamiento de retardos. Sin reglas SEP o feriados.

@@ -1,4 +1,5 @@
 import { Students } from '../features/students/Students';
+import { Attendance } from '../features/attendance/Attendance';
 import { useEffect, useRef } from 'react';
 import { Header } from '../components/layout/Header';
 import { Sidebar } from '../components/layout/Sidebar';
@@ -50,6 +51,8 @@ export function App() {
           <Dashboard />
         ) : current?.id === 'students' ? (
           <Students />
+        ) : current?.id === 'attendance' ? (
+          <Attendance />
         ) : current?.id === 'settings' ? (
           <SchoolManagement />
         ) : (

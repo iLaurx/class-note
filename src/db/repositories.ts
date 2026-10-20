@@ -2,6 +2,11 @@ import type { ClassNoteDatabase } from './database.ts';
 import { StorageError, storageOperation } from './errors.ts';
 import type { AuditedEntity, SettingValue } from '../domain/models.ts';
 import {
+  dateInYear,
+  includesDate,
+  matchesAttendance,
+} from '../features/attendance/attendanceDomain.ts';
+import {
   choice,
   flag,
   integer,
@@ -507,6 +512,96 @@ export class Repositories {
       requireRule(Array.isArray(inputs) && inputs.length > 0, 'Agrega al menos una asistencia.');
       const result = [];
       for (const input of inputs) result.push(await this.createAttendance(context, input));
+      return result;
+    });
+  }
+
+  loadAttendanceDay(context: GroupContext, inputDate: unknown) {
+    return this.read(async () => {
+      const { year } = await this.group(context);
+      const date = dateInYear(inputDate, year);
+      const members = await this.listGroupStudents(context);
+      const rows = [];
+      for (const member of members.filter((item) => includesDate(item.enrollment, date))) {
+        const attendance = await this.db.attendance
+          .where('[enrollmentId+date]')
+          .equals([member.enrollment.id, date])
+          .first();
+        rows.push({ ...member, attendance: attendance ?? null });
+      }
+      return rows.sort((a, b) =>
+        `${a.student.lastName} ${a.student.firstName}`.localeCompare(
+          `${b.student.lastName} ${b.student.firstName}`,
+          'es',
+        ),
+      );
+    });
+  }
+
+  saveAttendanceDay(
+    context: GroupContext,
+    inputDate: unknown,
+    inputs: unknown,
+    confirmedCorrections: unknown = false,
+  ) {
+    return this.write(async () => {
+      const { year, group } = await this.group(context);
+      requireRule(
+        !year.archived && !group.archived,
+        'Reactiva el ciclo y el grupo antes de guardar asistencia.',
+      );
+      const date = dateInYear(inputDate, year);
+      requireRule(
+        Array.isArray(inputs) && inputs.length > 0,
+        'Selecciona al menos un estado para guardar.',
+      );
+      const confirmed = flag(confirmedCorrections, false);
+      const seen = new Set<string>();
+      const result = [];
+      for (const input of inputs) {
+        const data = record(input);
+        const enrollmentId = uuid(data.enrollmentId);
+        requireRule(!seen.has(enrollmentId), 'La matrícula está repetida en el lote.');
+        seen.add(enrollmentId);
+        const { enrollment } = await this.enrollment({ ...context, enrollmentId });
+        requireRule(
+          includesDate(enrollment, date),
+          'La fecha está fuera del intervalo de matrícula, incluidos sus extremos.',
+        );
+        const student = await this.db.students.get(enrollment.studentId);
+        requireRule(student, 'No se pudo resolver la ficha del alumno.');
+        const status = choice(
+          data.status,
+          ['present', 'absent', 'late', 'excused'] as const,
+          'Asistencia',
+        );
+        const note = optionalText(data.note, 'Nota');
+        const current = await this.db.attendance
+          .where('[enrollmentId+date]')
+          .equals([enrollmentId, date])
+          .first();
+        if (current && current.status === status && current.note === note) {
+          result.push(current);
+          continue;
+        }
+        requireRule(
+          current ? matchesAttendance(data.expected, current) : data.expected === null,
+          'La asistencia cambió en otra ventana. Conservamos tu borrador; revisa el día antes de volver a guardar.',
+        );
+        if (current) {
+          requireRule(
+            confirmed,
+            'Confirma la corrección de los registros existentes antes de guardar.',
+          );
+          const updated = { ...current, status, note, updatedAt: new Date().toISOString() };
+          await this.db.attendance.put(updated);
+          result.push(updated);
+        } else {
+          result.push(
+            await this.createAttendance({ ...context, enrollmentId }, { date, status, note }),
+          );
+        }
+      }
       return result;
     });
   }

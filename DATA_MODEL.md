@@ -82,3 +82,13 @@ Crear ficha con matrícula es una transacción única. Crear/reactivar matrícul
 joinedAt y leftAt opcional deben ser fechas reales dentro del ciclo, ordenadas. Corregirlas o reactivar verifica las asistencias existentes dentro del intervalo inclusivo resultante en la misma transacción. No se borran ni recortan relaciones. La baja cambia solo status de esa matrícula y no inventa leftAt. La reactivación conserva UUID y exige confirmar fechas; retirar leftAt es explícito.
 
 Archivar Student usa active=false y cambia sus matrículas activas a inactive en una sola transacción, conservando fechas y todas las relaciones. Reactivar Student no reactiva matrículas. No hay borrado físico, reasignación, fusión ni periodos múltiples: una matrícula por alumno/grupo representa un único intervalo; reingresos separados quedan fuera de CN-005.
+
+## CN-006: captura parcial y correcciones sin migración
+
+Dexie v1 y el índice único attendance.enrollmentId+date permanecen intactos. El listado del día incluye todo intervalo inclusivo del grupo, sin excluir estados históricos inactivos ni Student.active=false. La salida ausente permanece indefinida, incluso tras archivo/baja.
+
+«Sin registrar» es UI, nunca un quinto estado persistido ni una falta implícita. Guardar parcialmente inserta solo filas seleccionadas; no elimina registros al vaciar un selector. Estado y nota se validan desde unknown. El ciclo/grupo debe admitir escritura y cada fecha debe pertenecer al ciclo/matrícula en la misma transacción que guarda el lote.
+
+Corregir conserva id/createdAt y cambia updatedAt únicamente cuando hay valores distintos; no se tocan filas intactas ni otras fechas/grupos. Comparación optimista de identidad, auditoría, estado y nota detecta cambios concurrentes; el conflicto revierte el lote completo. Los valores ya iguales son idempotentes. La instantánea esperada y las confirmaciones son parámetros de operación y no campos nuevos de asistencia.
+
+No hay schema nuevo ni migración necesaria. Los recuentos diarios separan present, absent, late, excused y filas sin registrar; estas últimas solo se derivan del listado del día. No hay métricas por periodo ni política que equipare excused a present.

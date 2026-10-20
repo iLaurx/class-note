@@ -1,4 +1,5 @@
 import { useWorkContext } from './useWorkContext';
+import { allowNavigation } from './pendingChanges';
 export function WorkContextSelector() {
   const { data, busy, error, run } = useWorkContext();
   const selection = data?.selection;
@@ -17,6 +18,7 @@ export function WorkContextSelector() {
           disabled={busy || !data}
           value={selection?.schoolYearId ?? ''}
           onChange={(e) =>
+            allowNavigation() &&
             void run((r) =>
               r.selectContext({ schoolYearId: e.target.value || null, groupId: null }),
             )
@@ -39,6 +41,7 @@ export function WorkContextSelector() {
           disabled={busy || !selection?.schoolYearId}
           value={selection?.groupId ?? ''}
           onChange={(e) =>
+            allowNavigation() &&
             void run((r) =>
               r.selectContext({
                 schoolYearId: selection?.schoolYearId,
