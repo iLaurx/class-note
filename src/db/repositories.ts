@@ -1,3 +1,4 @@
+import { noteFields, matchesNote } from '../features/notes/notesDomain.ts';
 import {
   assignmentFields,
   matchesSubmission,
@@ -971,20 +972,26 @@ export class Repositories {
     });
   }
 
+  private async noteContext(context: EnrollmentContext) {
+    const result = await this.enrollment(context);
+    requireRule(
+      !result.year.archived && !result.group.archived,
+      'Reactiva el ciclo y el grupo antes de modificar observaciones.',
+    );
+    requireRule(
+      await this.db.students.get(result.enrollment.studentId),
+      'No se pudo resolver la ficha del alumno.',
+    );
+    return result;
+  }
+
   createStudentNote(context: EnrollmentContext, input: unknown) {
     return this.write(async () => {
-      const { enrollment } = await this.enrollment(context);
-      const data = record(input);
+      const { year, enrollment } = await this.noteContext(context);
       const value = {
         ...audit(),
         enrollmentId: enrollment.id,
-        date: schoolDate(data.date),
-        category: choice(
-          data.category,
-          ['academic', 'participation', 'behavior', 'other'] as const,
-          'Categoría',
-        ),
-        body: text(data.body, 'Observación'),
+        ...noteFields(input, year, enrollment),
       };
       await this.db.studentNotes.add(value);
       return value;
@@ -994,7 +1001,81 @@ export class Repositories {
   listStudentNotes(context: EnrollmentContext) {
     return this.read(async () => {
       const { enrollment } = await this.enrollment(context);
-      return this.db.studentNotes.where('enrollmentId').equals(enrollment.id).toArray();
+      requireRule(
+        await this.db.students.get(enrollment.studentId),
+        'No se pudo resolver la ficha del alumno.',
+      );
+      const notes = await this.db.studentNotes
+        .where('enrollmentId')
+        .equals(enrollment.id)
+        .toArray();
+      return notes.sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
+    });
+  }
+
+  loadNotesGroup(context: GroupContext) {
+    return this.read(async () => {
+      await this.group(context);
+      const members = await this.listGroupStudents(context);
+      members.sort(
+        (a, b) =>
+          `${a.student.lastName} ${a.student.firstName}`.localeCompare(
+            `${b.student.lastName} ${b.student.firstName}`,
+            'es',
+          ) || a.enrollment.id.localeCompare(b.enrollment.id),
+      );
+      const notes = await this.db.studentNotes
+        .where('enrollmentId')
+        .anyOf(members.map((member) => member.enrollment.id))
+        .toArray();
+      return { members, notes };
+    });
+  }
+
+  updateStudentNote(context: EnrollmentContext, noteId: string, input: unknown, expected: unknown) {
+    return this.write(async () => {
+      const { year, enrollment } = await this.noteContext(context);
+      const previous = await this.db.studentNotes.get(uuid(noteId));
+      requireRule(
+        previous && previous.enrollmentId === enrollment.id,
+        'La observación no pertenece a la matrícula indicada.',
+      );
+      const fields = noteFields(input, year, enrollment);
+      requireRule(
+        matchesNote(expected, previous),
+        'La observación cambió en otra ventana. Conservamos tu borrador; consulta los datos guardados antes de corregir.',
+      );
+      if (
+        Object.entries(fields).every(
+          ([key, value]) => previous[key as keyof typeof previous] === value,
+        )
+      )
+        return previous;
+      const value = { ...previous, ...fields, updatedAt: new Date().toISOString() };
+      await this.db.studentNotes.put(value);
+      return value;
+    });
+  }
+
+  deleteStudentNote(
+    context: EnrollmentContext,
+    noteId: string,
+    expected: unknown,
+    confirmed: boolean,
+  ) {
+    return this.write(async () => {
+      requireRule(confirmed === true, 'Confirma la eliminación de la observación.');
+      const { enrollment } = await this.noteContext(context);
+      const previous = await this.db.studentNotes.get(uuid(noteId));
+      requireRule(
+        previous && previous.enrollmentId === enrollment.id,
+        'La observación no pertenece a la matrícula indicada.',
+      );
+      requireRule(
+        matchesNote(expected, previous),
+        'La observación cambió en otra ventana. Consulta los datos guardados antes de eliminar.',
+      );
+      await this.db.studentNotes.delete(previous.id);
     });
   }
 

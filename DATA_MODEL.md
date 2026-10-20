@@ -48,7 +48,7 @@ studentNotes: 'id, [enrollmentId+date]'
 appSettings: 'key'
 ```
 
-Los tipos están definidos y las referencias se validan en repositorios dentro de la misma transacción que la escritura; IndexedDB no proporciona claves foráneas. Las lecturas y notas admiten varias entradas por matrícula/fecha. La fecha de entrega de tarea, si existe, no precede a la asignación. Las políticas temporales implementadas en CN-007 y CN-008 se describen abajo; notas conserva únicamente la validación de fecha real.
+Los tipos están definidos y las referencias se validan en repositorios dentro de la misma transacción que la escritura; IndexedDB no proporciona claves foráneas. Las lecturas y notas admiten varias entradas por matrícula/fecha. La fecha de entrega de tarea, si existe, no precede a la asignación. Las políticas temporales implementadas en CN-007, CN-008 y CN-009 se describen abajo.
 
 `appSettings.value` admite valores JSON escalares (`string | number | boolean | null`), con números finitos. No se permiten objetos arbitrarios ni se escriben preferencias iniciales. Las entradas de creación se reciben como `unknown`, se validan y se reconstruyen; IDs y auditoría externos no se copian.
 
@@ -108,3 +108,11 @@ Dexie v1 conserva readingLogs y su índice compuesto no único enrollmentId+date
 Alta/edición validan contexto activo, ficha, referencias e intervalo dentro de la transacción. Matrícula propietaria, UUID y createdAt inmutables; updatedAt cambia solo si cambian campos. Edición con instantánea de identidad, valores y auditoría exige conflicto explícito ante cambios concurrentes; no hay borrado. Las correcciones posteriores de ciclos/matrículas no introducen cascadas ni reinterpretación; al editar lectura se valida el intervalo actual.
 
 Historial individual por fecha descendente y UUID ascendente; rango inclusivo. Semana gregoriana local completa de lunes a domingo, sin UTC, incluso al cruzar mes/año. Totales por matrícula y grupo incluyen todas las entradas y ceros, independientes del filtro del historial. Son proyecciones, no campos nuevos ni métricas persistidas. Detalles: docs/READING.md.
+
+## CN-009: observaciones privadas por matrícula sin migración
+
+Se conserva Dexie v1 y studentNotes.[enrollmentId+date] no único. Fecha local real dentro de ciclo y matrícula, extremos inclusivos; sin salida, limita el fin del ciclo. Categorías cerradas academic/participation/behavior/other; body obligatorio recortado. Varias notas por fecha permitidas. Inactividad de matrícula o archivo de ficha no ocultan historial ni impiden registrar dentro del intervalo válido.
+
+Alta y edición validan referencias, ficha, contexto activo e intervalo dentro de la transacción. UUID, createdAt y enrollmentId inmutables; updatedAt cambia solo al modificar campos normalizados. Comparación optimista de identidad, valores y auditoría tanto en edición como en borrado; no sobrescribe cambios concurrentes. Eliminar exige confirmación explícita y solo elimina la nota, nunca alumno/matrícula. No se exige un intervalo temporal para borrar una nota previa: permite retirarla aunque una corrección posterior del intervalo la haya dejado fuera.
+
+Consulta del grupo explícito en instantánea transaccional; incluye historial válido inactivo/archivado, búsqueda por nombre/texto y filtros por matrícula/categoría/rango inclusivo. Fecha descendente y UUID ascendente. No cambia la edición de ciclos/matrículas ni modifica registros anteriores automáticamente. Sin contactos, adjuntos, métricas, exportación ni conexiones con otros módulos. Detalles: docs/OBSERVATIONS.md.

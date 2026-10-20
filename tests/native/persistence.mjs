@@ -1,3 +1,4 @@
+import { recordNotes, verifyNotes, addNote } from '../helpers/notes-flow.ts';
 import {
   recordSubmissions,
   verifySubmissions,
@@ -173,6 +174,7 @@ try {
   await recordAttendance(first.page);
   await recordSubmissions(first.page);
   await recordReading(first.page);
+  await recordNotes(first.page);
   before = await first.evaluate('ClassNoteProbe.snapshot()');
   const student = before.students.find((s) => s.firstName === 'Ána editada');
   assert.ok(student);
@@ -251,6 +253,36 @@ try {
   await expect(
     second.page.getByText('Total del grupo: 35 minutos · 4 registros', { exact: true }),
   ).toBeVisible();
+  await verifyNotes(second.page);
+  await second.page.screenshot({
+    path: path.join(output, 'notes-after-restart.png'),
+    fullPage: true,
+  });
+  await addNote(second.page, 'Observación offline posterior');
+  const notesAfterWrite = await second.evaluate('ClassNoteProbe.snapshot()');
+  assert.equal(notesAfterWrite.studentNotes.length, before.studentNotes.length + 1);
+  for (const note of before.studentNotes)
+    assert.deepEqual(
+      notesAfterWrite.studentNotes.find((row) => row.id === note.id),
+      note,
+    );
+  const remove = second.page
+    .getByRole('listitem')
+    .filter({ hasText: 'Observación offline posterior' })
+    .getByRole('button', { name: /Eliminar observación/ });
+  second.page.once('dialog', (dialog) => dialog.dismiss());
+  await remove.click();
+  assert.deepEqual(
+    (await second.evaluate('ClassNoteProbe.snapshot()')).studentNotes,
+    notesAfterWrite.studentNotes,
+  );
+  second.page.once('dialog', (dialog) => dialog.accept());
+  await remove.click();
+  await expect(second.page.getByText('La observación se eliminó.', { exact: true })).toBeVisible();
+  const notesAfterDelete = await second.evaluate('ClassNoteProbe.snapshot()');
+  assert.deepEqual(notesAfterDelete.studentNotes, before.studentNotes);
+  assert.deepEqual(notesAfterDelete.students, before.students);
+  assert.deepEqual(notesAfterDelete.enrollments, before.enrollments);
   await verifyArchiveFlow(second.page);
   const archived = await second.evaluate('ClassNoteProbe.snapshot()');
   for (const table of [
@@ -310,6 +342,11 @@ try {
         offlineSubmissionWriteAfterRestart: true,
         assignmentsBeforeRestart: before.assignments,
         submissionsBeforeRestart: before.submissions,
+        uiNotesCreatedEdited: true,
+        uiNotesHistoryPreserved: true,
+        offlineNoteWriteAfterRestart: true,
+        uiNoteDeleteCancelledAndConfirmed: true,
+        notesBeforeRestart: before.studentNotes,
         uiReadingCreatedEdited: true,
         uiReadingHistoryWeeklyTotalsPreserved: true,
         offlineReadingWriteAfterRestart: true,

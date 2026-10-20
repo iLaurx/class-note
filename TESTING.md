@@ -30,8 +30,8 @@ Después de CN-001/CN-001A:
 - `pnpm typecheck`: TypeScript estricto, incluida la configuración y las pruebas UI.
 - `pnpm lint` y `pnpm format:check`: ESLint y Prettier.
 - `pnpm build`: frontend distribuible.
-- `pnpm test`: build, 47 pruebas de dominio/persistencia con Node, dos comprobaciones de distribución y 44 tests UI (incluye CN-008).
-- `pnpm test:db`: 47 pruebas TypeScript con Node Test Runner y fake-indexeddb. Requiere Node 24 o compatible con `--experimental-strip-types`; no descarga runner ni navegador.
+- `pnpm test`: build, 52 pruebas de dominio/persistencia con Node, dos comprobaciones de distribución y 51 tests UI (incluye CN-009).
+- `pnpm test:db`: 52 pruebas TypeScript con Node Test Runner y fake-indexeddb. Requiere Node 24 o compatible con `--experimental-strip-types`; no descarga runner ni navegador.
 - `pnpm test:native`: ejecutable release real, WebView2 con perfil aislado y CDP local, escritura/lectura offline, cierre completo y reapertura. Requiere `pnpm tauri:build` previo; no inicia Vite ni instala ClassNote. Véase [PERSISTENCE.md](docs/PERSISTENCE.md).
 - `pnpm test:ui`: build y tests UI con Playwright / Edge instalado, sin descargar navegadores.
 - `pnpm tauri:dev`: compilación y arranque nativo.
@@ -127,3 +127,12 @@ Resultados finales CN-007 (19/10/2026): lint, format:check, typecheck, test (40 
 La prueba offline no modifica la red del equipo ni utiliza perfiles personales. No acredita instalación inicial offline, tráfico del sistema operativo, reinicio de Windows, actualización, desinstalación, recuperación ante corte, backups/restauración ni auditoría de lector de pantalla; CN-002 y CN-013 siguen pendientes.
 
 Resultados finales CN-008 (19/10/2026): lint, format:check, typecheck, test (47 dominio/DB + 2 distribución + 44 UI), build, tauri:build y test:native aprobados. Release x64 e instalador NSIS generados. PIDs nativos distintos (24388 y 11672), 37 registros de dominio y diez tablas exactamente conservadas al reiniciar; historial individual y semana de 35 minutos/3 entradas recuperados por UI; nueva lectura offline de cero minutos incrementa el conteo a 4 y conserva las anteriores. Se inspeccionaron seis capturas a 1100/768/360 px y WebView2 tras reinicio. Incidencias de preview/NSIS y fixtures de UI/semana resueltas; evidencia y límites en docs/READING.md. CN-008 completa, sin cerrar CN-002/CN-013.
+
+## CN-009: observaciones privadas
+
+- tests/db/notes.test.ts: cinco pruebas integradas sintéticas de validación, referencias, fechas inclusivas, categorías, alta/edición, identidad/no-op, aislamiento, historia inactiva/archivada, orden/filtros, conflicto concurrente y borrado confirmado/cancelado sin cascada; rollback real de alta, corrección y eliminación tras fallo posterior dentro de transacción.
+- tests/ui/notes.spec.ts y tests/helpers/notes-flow.ts: siete pruebas con tamaños 1100/768/360 px, offline/teclado/foco/labels, formularios/filtros/búsqueda, borrador protegido, confirmaciones, errores recuperables, doble envío, lectura posterior al commit sin duplicación y conflicto entre ventanas. Se mantiene navegación de ocho secciones sustituyendo solo placeholder de Observaciones.
+- tests/native/persistence.mjs: alta/edición por UI, cierre completo/reapertura del mismo release/perfil WebView2 aislado, igualdad exacta de diez tablas; historial de notas recuperado y alta/borrado cancelado/confirmado offline posteriores, sin modificar alumnos/matrículas.
+- Comandos: pnpm lint, pnpm format:check, pnpm typecheck, pnpm test, pnpm build, pnpm tauri:build y finalmente pnpm test:native. Capturas notes-*.png/notes-form-*.png y native/notes-after-restart.png; resultados finales y límites: docs/OBSERVATIONS.md. No ejecutarlo con perfiles personales ni cambiar la red del equipo. CN-002/CN-013 siguen pendientes.
+
+Resultados finales CN-009 (19/10/2026): lint, format:check, typecheck, test (52 dominio/DB + 2 distribución + 51 UI), build, tauri:build y test:native aprobados. Release x64 e instalador NSIS de 1.992.441 bytes generados. Dos procesos nativos distintos (33060 y 30512), igualdad exacta de diez tablas y 39 registros de dominio tras reinicio, notas creadas/editadas e historial UI recuperado; alta offline posterior y eliminación cancelada/confirmada sin tocar alumnos/matrículas. Capturas finales de seis vistas a 1100/768/360 px y WebView2 tras reinicio inspeccionadas. Incidencias resueltas, evidencia y límites: docs/OBSERVATIONS.md. CN-009 completa, sin cerrar CN-002/CN-013.

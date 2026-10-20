@@ -1,3 +1,4 @@
+import { Observations } from '../features/notes/Observations';
 import { Assignments } from '../features/assignments/Assignments';
 import { Reading } from '../features/reading/Reading';
 import { Students } from '../features/students/Students';
@@ -59,6 +60,8 @@ export function App() {
           <Assignments />
         ) : current?.id === 'reading' ? (
           <Reading />
+        ) : current?.id === 'notes' ? (
+          <Observations />
         ) : current?.id === 'settings' ? (
           <SchoolManagement />
         ) : (
