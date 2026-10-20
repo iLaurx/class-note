@@ -24,6 +24,7 @@ import { promisify } from 'node:util';
 import { build } from 'vite';
 import { chromium, expect } from '@playwright/test';
 import ExcelJS from 'exceljs';
+import { verifyWorkload, verifyWorkbooks } from './workload.mjs';
 import {
   createYearsAndGroups,
   verifySelection,
@@ -75,13 +76,13 @@ async function poll(operation, timeout = 20000) {
   throw new Error('Se agotó el tiempo de espera del ejecutable WebView2.');
 }
 
-async function launch() {
+async function launch(targetProfile = profile) {
   const child = spawn(exe, [], {
     cwd: path.dirname(exe),
     windowsHide: true,
     env: {
       ...process.env,
-      WEBVIEW2_USER_DATA_FOLDER: profile,
+      WEBVIEW2_USER_DATA_FOLDER: targetProfile,
       WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port} --remote-debugging-address=127.0.0.1`,
     },
     stdio: 'ignore',
@@ -119,7 +120,7 @@ async function launch() {
           '-NoProfile',
           '-NonInteractive',
           '-Command',
-          `@(Get-CimInstance Win32_Process -Filter "Name = 'msedgewebview2.exe'" | Where-Object { $_.CommandLine -like '*${profile.replaceAll("'", "''")}*' }).Count`,
+          `@(Get-CimInstance Win32_Process -Filter "Name = 'msedgewebview2.exe'" | Where-Object { $_.CommandLine -like '*${targetProfile.replaceAll("'", "''")}*' }).Count`,
         ],
         { windowsHide: true },
       );
@@ -137,7 +138,7 @@ async function launch() {
       context.pages().find((page) => page.url().startsWith('http://tauri.localhost')),
     );
     await page.getByText('Almacenamiento local listo.', { exact: true }).waitFor();
-    assert.ok((await readdir(profile)).length > 0, 'WebView2 debe usar el perfil aislado.');
+    assert.ok((await readdir(targetProfile)).length > 0, 'WebView2 debe usar el perfil aislado.');
     await context.setOffline(true);
     assert.equal(await page.evaluate(() => navigator.onLine), false);
     const requests = [];
@@ -571,3 +572,123 @@ if (process.env.CN012_BACKUP_UI === '1') {
   }
 }
 console.log(`Persistencia nativa verificada. Evidencia: ${path.join(output, 'result.json')}`);
+if (process.env.CN013_HARDENING === '1') {
+  const workloadSession = await launch();
+  const workloads = [];
+  const timings = [];
+  let expected;
+  let recovery;
+  let workbooks;
+  try {
+    // Leave Inicio before adding contexts through the test-only repository probe.
+    await workloadSession.page
+      .getByRole('navigation')
+      .getByRole('link', { name: 'Alumnos', exact: true })
+      .click();
+    for (const size of [35, 100]) {
+      console.log(`CN013: carga sintética nativa ${size}`);
+      workloads.push(await workloadSession.evaluate(`ClassNoteProbe.seedWorkload(${size})`));
+    }
+    // Reload only to discover newly seeded test contexts; persistence is tested below
+    // by stopping all processes and opening another native executable instance.
+    await workloadSession.page.reload();
+    await workloadSession.page.getByText('Almacenamiento local listo.', { exact: true }).waitFor();
+    await workloadSession.evaluate(script);
+    for (const workload of workloads)
+      timings.push(await verifyWorkload(workloadSession, workload, output, 'before-restart'));
+    workbooks = await verifyWorkbooks(workloadSession, workloads, output);
+    expected = await workloadSession.evaluate('ClassNoteProbe.snapshot()');
+    recovery = await workloadSession.evaluate('ClassNoteProbe.exerciseRecovery()');
+    assert.deepEqual(await workloadSession.evaluate('ClassNoteProbe.snapshot()'), expected);
+    await writeFile(path.join(output, 'hardening-backup.json'), recovery.source);
+    await writeFile(path.join(output, 'hardening-pre-backup.json'), recovery.previous);
+    await writeFile(path.join(output, 'hardening-before.json'), JSON.stringify(expected));
+  } finally {
+    await workloadSession.stop();
+  }
+  const reopened = await launch();
+  try {
+    assert.notEqual(reopened.pid, workloadSession.pid);
+    const reopenedSnapshot = await reopened.evaluate('ClassNoteProbe.snapshot()');
+    assert.deepEqual(reopenedSnapshot, expected);
+    await writeFile(path.join(output, 'hardening-after.json'), JSON.stringify(reopenedSnapshot));
+    for (const workload of workloads)
+      timings.push(await verifyWorkload(reopened, workload, output, 'after-restart'));
+    assert.deepEqual(reopened.requests, []);
+    const checks = { ...recovery };
+    delete checks.source;
+    delete checks.previous;
+    await writeFile(
+      path.join(output, 'hardening-result.json'),
+      JSON.stringify(
+        {
+          success: true,
+          checkedAt: new Date().toISOString(),
+          executable: exe,
+          profile,
+          pids: [workloadSession.pid, reopened.pid],
+          workloads,
+          timings,
+          workbooks,
+          recovery: checks,
+          tenStoresExactAfterNativeRestart: true,
+          counts: Object.fromEntries(
+            Object.entries(expected).map(([name, rows]) => [name, rows.length]),
+          ),
+          offlineContext: true,
+          externalRequests: reopened.requests,
+          limits:
+            'No acredita instalación, actualización de versión, reinicio de Windows, desinstalación, tráfico del sistema ni lector de pantalla.',
+        },
+        null,
+        2,
+      ),
+    );
+  } finally {
+    await reopened.stop();
+  }
+  const cleanProfile = await mkdtemp(path.join(output, 'webview2-clean-'));
+  const clean = await launch(cleanProfile);
+  try {
+    const restored = await clean.evaluate(
+      `ClassNoteProbe.restoreIntoEmpty(${JSON.stringify(recovery.source)})`,
+    );
+    assert.deepEqual(restored.after, expected);
+    await writeFile(path.join(output, 'clean-before.json'), JSON.stringify(restored.before));
+    await writeFile(path.join(output, 'clean-after-restore.json'), JSON.stringify(restored.after));
+    await writeFile(path.join(output, 'clean-pre-backup.json'), restored.previous);
+  } finally {
+    await clean.stop();
+  }
+  const cleanReopened = await launch(cleanProfile);
+  try {
+    assert.notEqual(cleanReopened.pid, clean.pid);
+    const actual = await cleanReopened.evaluate('ClassNoteProbe.snapshot()');
+    assert.deepEqual(actual, expected);
+    await writeFile(path.join(output, 'clean-after-restart.json'), JSON.stringify(actual));
+    for (const workload of workloads)
+      await verifyWorkload(cleanReopened, workload, output, 'clean-restored');
+    assert.deepEqual(cleanReopened.requests, []);
+    await writeFile(
+      path.join(output, 'clean-restore-result.json'),
+      JSON.stringify(
+        {
+          success: true,
+          profile: cleanProfile,
+          pids: [clean.pid, cleanReopened.pid],
+          emptyTenStoresBefore: true,
+          exactTenStoresAfterRestoreAndRestart: true,
+          emptyPreBackupValidated: true,
+          offlineContext: true,
+          externalRequests: cleanReopened.requests,
+          checkedAt: new Date().toISOString(),
+          limits: 'Perfil limpio del ejecutable release; no es una instalación limpia.',
+        },
+        null,
+        2,
+      ),
+    );
+  } finally {
+    await cleanReopened.stop();
+  }
+}

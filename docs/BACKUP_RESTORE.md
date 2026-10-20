@@ -1,5 +1,30 @@
 # Respaldo completo y restauración — CN-012
 
+## Revalidación CN-013 (20/10/2026)
+
+Matriz vigente y límites: [HARDENING.md](HARDENING.md). Suite global 63 DB + 2
+distribución + 64 UI aprobadas; corregidos los dos fallos históricos de pruebas
+de consulta de Lecturas/Observaciones mediante sincronización con Inicio, sin
+modificar módulos de aplicación ni aserciones de recuperación.
+
+Checkpoint CN-012 con diálogos reales aprobado en perfil temporal nuevo:
+exportación, respaldo previo físico validado, reemplazo, rollback intermedio y
+tercera apertura con diez stores exactas/relaciones recuperadas por UI.
+`native/backup-result.json` y `dialog-persistence-result.json` preservan esa ejecución.
+Hardening final añade carga 35/100, fuente truncada rechazada antes de respaldo
+previo, cancelación de confirmación/guardado, fallo de almacenamiento simulado,
+rollback y reintento sin pérdida; compara valores, UUID y auditoría de diez stores.
+Otro perfil nuevo vacío importa el respaldo y conserva todo tras cierre/reapertura.
+Evidencia: `native/hardening-result.json`, `clean-restore-result.json`, instantáneas
+`hardening-*.json`, `clean-*.json` y capturas nativas. Los callbacks de archivo de
+la sonda son simulados; el pre-backup físico se comprueba en el checkpoint UI.
+
+Se conserva contrato v1 y todas las implementaciones de CN-012. Un perfil nuevo
+no acredita instalación limpia. Actualización/desinstalación/reinicio de Windows,
+corte y daño físico siguen pendientes; no se borraron perfiles personales ni se
+cambió la red. Guardar copias fuera del perfil antes de desinstalar; su conservación
+durante desinstalación aún no está verificada.
+
 ## Uso
 
 En Configuración, **Guardar respaldo completo** abre un diálogo para elegir el

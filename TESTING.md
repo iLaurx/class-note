@@ -1,5 +1,37 @@
 # Plan de pruebas
 
+## CN-013: matriz vigente y ejecución Windows (20/10/2026)
+
+**CN-013 pendiente de cierre.** Matriz por caso (aprobado/fallido/pendiente),
+evidencias, causa de fallos y límites: [HARDENING.md](docs/HARDENING.md).
+Ese registro actualiza los resultados históricos de los módulos que siguen abajo.
+
+Suite global final: **63 DB + 2 distribución + 64 UI aprobadas**. Los dos fallos
+de consulta simulada de Lecturas/Observaciones se reprodujeron y corrigieron solo
+en pruebas: esperar la consulta del resumen de Inicio antes de activar el fallo
+de lectura de un solo uso. Tres repeticiones por caso aprobadas, sin relajar
+aserciones. Lint/formato/typecheck/build/tauri:build y test:native aprobados.
+
+`CN013_HARDENING=1 pnpm test:native` amplía el release con 35/100 alumnos, 22 días
+de asistencia y diez tareas por grupo, consulta y corrección por UI, Excel con
+texto peligroso, errores/rollback/reintento, respaldo previo y restauración a otro
+perfil nuevo vacío. Cierre completo/reapertura de ambos perfiles con comparación
+exacta de diez stores, UUID, relaciones y auditoría. Evidencia local:
+`native/hardening-result.json`, `hardening-before.json`, `hardening-after.json`,
+`clean-restore-result.json`, `clean-*.json`, XLSX y capturas de carga/restauración.
+Sonda y fixtures solo en tests, sin cambios de schema/dependencias/permisos.
+
+Checkpoints nativos CN-011/CN-012 con diálogos reales también aprobados; resultados
+preservados en `native/dialog-persistence-result.json`, `excel-result.json` y
+`backup-result.json`. `tests/native/check-excel.ps1` abre tres XLSX sintéticos con
+Microsoft Excel separado, invisible y solo lectura: cuatro hojas, ninguna fórmula.
+No usa perfiles personales. UI limpia test-results; ejecutar nativas al final.
+
+Pendientes: instalación/primer arranque offline, actualización entre versiones,
+reinicio de Windows, desinstalación, salida hablada de lector de pantalla y tráfico
+global/fallos físicos. No hay schema anterior real para migrar. Un perfil vacío
+del release no acredita instalación limpia. CN-002 permanece pendiente.
+
 ## CN-012: respaldo completo y restauración
 
 - tests/db/backup.test.ts: diez tablas vacías/relacionadas, igualdad exacta de
@@ -63,17 +95,18 @@ confirmaciones del plugin y refresco del reloj sintético en EXCEL_EXPORT.md.
 
 ## Pruebas manuales Windows (release gate)
 - [ ] Instalar en equipo Windows 11 sin internet disponible durante primer inicio una vez cumplidos prerequisitos del instalador.
-- [ ] Arrancar y registrar 35 alumnos, 1 mes de asistencias y 10 tareas sin red.
-- [ ] Cerrar proceso y volver a abrir; datos intactos.
+- [x] Ejercitar 35 y 100 alumnos, 22 días laborables y 10 tareas sin red del contexto; carga por repositorios nativos y correcciones desde UI. No es captura humana de toda la carga; véase CN-013.
+- [x] Cerrar proceso y volver a abrir; diez stores intactas, UUID/auditoría/relaciones comparados (CN-013).
 - [ ] Reiniciar equipo; datos intactos.
 - [ ] Actualizar versión de app con datos existentes; datos intactos.
 - [ ] Importar backup en instalación de prueba limpia; validar conteos y relaciones.
-- [ ] Cancelar restauración; base intacta.
-- [ ] Simular archivo de respaldo inválido; no perder datos.
-- [ ] Exportar XLSX y abrir en Microsoft Excel o visor compatible; verificar cuatro hojas.
-- [ ] Cambiar entre ciclos/grupos; ninguna mezcla de registros.
-- [ ] Aumentar/reducir ventana, navegar con teclado y probar lector de pantalla de manera básica.
-- [ ] Verificar que no se hacen solicitudes externas en operación normal offline.
+- [x] Cancelar restauración; base intacta (UI y servicio nativo).
+- [x] Simular respaldo inválido; no perder datos (validación en WebView2, archivo/IPC simulado en UI).
+- [x] Exportar XLSX y abrir en Microsoft Excel; cuatro hojas sin fórmulas (CN-013).
+- [x] Cambiar entre ciclos/grupos; ninguna mezcla de registros (CN-013).
+- [x] Aumentar/reducir ventana y navegar con teclado a 1100/768/360 px.
+- [ ] Probar salida hablada de lector de pantalla de manera básica.
+- [x] Cero solicitudes externas observadas en los flujos UI/WebView2 aislados; no acredita tráfico global de Windows.
 - [ ] Revisar comportamiento de desinstalación y limpieza de datos WebView2; documentar riesgos.
 
 ## Comandos
@@ -82,8 +115,8 @@ Después de CN-001/CN-001A:
 - `pnpm typecheck`: TypeScript estricto, incluida la configuración y las pruebas UI.
 - `pnpm lint` y `pnpm format:check`: ESLint y Prettier.
 - `pnpm build`: frontend distribuible.
-- `pnpm test`: build, 55 pruebas de dominio/persistencia con Node, dos comprobaciones de distribución y 55 tests UI (incluye CN-010).
-- `pnpm test:db`: 55 pruebas TypeScript con Node Test Runner y fake-indexeddb. Requiere Node 24 o compatible con `--experimental-strip-types`; no descarga runner ni navegador.
+- `pnpm test`: build, 63 pruebas de dominio/persistencia con Node, dos comprobaciones de distribución y 64 tests UI (hasta CN-013).
+- `pnpm test:db`: 63 pruebas TypeScript con Node Test Runner y fake-indexeddb. Requiere Node 24 o compatible con `--experimental-strip-types`; no descarga runner ni navegador.
 - `pnpm test:native`: ejecutable release real, WebView2 con perfil aislado y CDP local, escritura/lectura offline, cierre completo y reapertura. Requiere `pnpm tauri:build` previo; no inicia Vite ni instala ClassNote. Véase [PERSISTENCE.md](docs/PERSISTENCE.md).
 - `pnpm test:ui`: build y tests UI con Playwright / Edge instalado, sin descargar navegadores.
 - `pnpm tauri:dev`: compilación y arranque nativo.

@@ -1,4 +1,5 @@
 // Bundled only by the native test runner, never imported by the application.
+export { seedWorkload, workloadWorkbook, exerciseRecovery, restoreIntoEmpty } from './hardening.ts';
 import { ClassNoteDatabase } from '../../src/db/database.ts';
 import { Repositories } from '../../src/db/repositories.ts';
 import { fillRelated } from '../db/fixtures.ts';

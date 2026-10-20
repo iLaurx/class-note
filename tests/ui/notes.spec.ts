@@ -220,6 +220,8 @@ test('CN009 conflicto entre ventanas conserva borrador y no sobrescribe; consult
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Cancelar observación' }).click();
   await page.getByRole('navigation').getByRole('link', { name: 'Inicio', exact: true }).click();
+  // Inicio also reads groups. Finish that query before arming the one-shot fault.
+  await expect(page.getByRole('region', { name: 'Resumen del grupo', exact: true })).toBeVisible();
   await page.evaluate(() => {
     const get = IDBObjectStore.prototype.get;
     let fail = true;

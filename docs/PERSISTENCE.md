@@ -1,5 +1,24 @@
 # CN-003 — Dexie v1 y persistencia offline
 
+## Evidencia vigente CN-013 (20/10/2026)
+
+La evidencia histórica de CN-003 se conserva abajo. La matriz vigente está en
+[HARDENING.md](HARDENING.md): release WebView2 con perfiles temporales nuevos,
+carga de 35/100 alumnos, mes de asistencia y diez tareas, correcciones por UI,
+restauración/rollback y comparación exacta de diez stores antes/después de cierre
+completo y reapertura. Otro perfil inicialmente vacío restaura el mismo respaldo,
+cierra/reabre y conserva UUID, auditoría, relaciones y selección. Evidencia:
+`test-results/native/{hardening-result,clean-restore-result}.json`, instantáneas
+`hardening-before/after.json` y `clean-*.json`. Repetir mediante
+`CN013_HARDENING=1 pnpm test:native`, después de UI y tauri:build.
+
+El perfil temporal se fuerza solo en el entorno del proceso de pruebas; no cambia
+la ruta del producto. No se acredita instalación, actualización, desinstalación,
+reinicio de Windows ni migración histórica: solo existe schema v1. El aislamiento
+offline empieza después de cargar UI y no representa tráfico global del sistema.
+La conservación tras desinstalar es desconocida; respaldar fuera del perfil antes
+de hacerlo. CN-013 y CN-002 permanecen pendientes.
+
 Implementado y validado el 19 de octubre de 2026. Alcance exclusivo CN-003: base
 tipada, repositorios e inicialización. No hay formularios escolares ni dashboard real.
 
