@@ -1,10 +1,68 @@
 # Plan de pruebas
 
+## CN-014 — preparación de v0.1.0 (20/10/2026)
+
+CN-013 se considera completada por decisión explícita del usuario para esta
+entrega. La sección siguiente y HARDENING.md son la matriz histórica preservada;
+sus casos no ejecutados no pasan a aprobados por esta decisión.
+
+Resultados nuevos, artefactos y límites: [RELEASE_0.1.0.md](docs/RELEASE_0.1.0.md).
+Evidencia excluida de Git: `src-tauri/target/cn014-evidence/`. Antes de ejecutar
+la suite UI se copiaron allí `cn013-native/` y `cn013-pending/`, conservando los
+resultados anteriores. No se repite la carga 35/100 de CN-013.
+
+El runner existente admite dos opciones solo de pruebas: `CN_NATIVE_EXE` para
+el ejecutable instalado y `CN_NATIVE_OUTPUT` para evidencia separada. Si se omiten,
+mantiene sus rutas anteriores. Siempre crea perfil WebView2 temporal, no usa el
+perfil personal ni modifica identifier/origen/schema/capabilities del producto.
+
+Después de `pnpm test`, la verificación del binario instalado se reproduce así:
+
+```powershell
+$env:CN_NATIVE_EXE = (Resolve-Path 'src-tauri/target/cn014-evidence/installed/classnote.exe').Path
+$env:CN_NATIVE_OUTPUT = Join-Path (Get-Location) 'src-tauri/target/cn014-evidence/native-delivery'
+$env:CN011_EXPORT_UI = '1'
+$env:CN012_BACKUP_UI = '1'
+pnpm test:native
+Remove-Item Env:CN_NATIVE_EXE, Env:CN_NATIVE_OUTPUT, Env:CN011_EXPORT_UI, Env:CN012_BACKUP_UI
+```
+
+Operar los diálogos reales en los destinos sintéticos que imprime el runner;
+cancelar la segunda exportación Excel cuando se indique. No publicar los perfiles,
+archivos ni capturas. La instalación de prueba se realiza solo si no hay ClassNote
+ya instalado, con `/S /NS /D=<carpeta aislada absoluta>`; escribe su registro NSIS
+por usuario pero no accesos directos. No ejecutar esto sobre otra instalación.
+El uso offline se aplica por CDP después de cargar la aplicación, por lo que no
+verifica instalación inicial totalmente desconectada ni tráfico global de Windows.
+
+Resultado nuevo: lint/formato/tipos, `pnpm test` (63 DB + 2 distribución + 64 UI),
+`pnpm tauri:build` y nativa aprobados. NSIS instalado en carpeta aislada, binario
+x64 y metadatos 0.1.0 sin firma; cierre/reapertura y restauración con tres PIDs
+distintos (registrados en native-delivery/backup-result.json), diez stores exactas/UUID/auditoría/relaciones/selección, copia
+previa física y rollback comprobados. Excel guardado y cancelado en diálogos reales,
+cuatro hojas y ninguna fórmula al reabrir con ExcelJS. Capturas inspeccionadas.
+CN-014 queda pendiente únicamente de la aceptación del recorrido por una persona
+no técnica; no se presenta automatización como prueba humana.
+
 ## CN-013: matriz vigente y ejecución Windows (20/10/2026)
 
 **CN-013 pendiente de cierre.** Matriz por caso (aprobado/fallido/pendiente),
 evidencias, causa de fallos y límites: [HARDENING.md](docs/HARDENING.md).
 Ese registro actualiza los resultados históricos de los módulos que siguen abajo.
+
+Seguimiento de pendientes (20/10/2026): instalación/primer inicio offline, reinicio
+del SO, actualización instalada, desinstalación y lector de pantalla siguen
+**pendientes**. VirtualBox existe fuera de PATH, pero solo registra una VM Linux
+guardada; no hay Windows desechable accesible identificado. Narrador está instalado
+en el host (10.0.26100.8972); NVDA no se encontró en rutas estándar. No se ha
+verificado su salida hablada en un entorno desechable. Solo está disponible el
+instalador 0.1.0 x64 (2.356.497 bytes), sin segunda versión real para actualizar.
+**Migración histórica: no aplicable hasta que exista una versión publicada con
+schema previo.** No es una prueba fallida ni una migración por inventar.
+Procedimientos P1–P5 y comparación completa de diez tablas/UUID/auditoría/relaciones/
+selección: [HARDENING.md](docs/HARDENING.md). Evidencia de inventario separada en
+`test-results/cn013-pending/`. Esta continuación solo modifica documentos; se
+comprueban contenido, enlaces, formato y diff, sin repetir las suites aprobadas.
 
 Suite global final: **63 DB + 2 distribución + 64 UI aprobadas**. Los dos fallos
 de consulta simulada de Lecturas/Observaciones se reprodujeron y corrigieron solo
@@ -29,7 +87,8 @@ No usa perfiles personales. UI limpia test-results; ejecutar nativas al final.
 
 Pendientes: instalación/primer arranque offline, actualización entre versiones,
 reinicio de Windows, desinstalación, salida hablada de lector de pantalla y tráfico
-global/fallos físicos. No hay schema anterior real para migrar. Un perfil vacío
+global/fallos físicos. Migración histórica no aplicable mientras no exista una
+versión publicada con schema previo. Un perfil vacío
 del release no acredita instalación limpia. CN-002 permanece pendiente.
 
 ## CN-012: respaldo completo y restauración
@@ -91,7 +150,7 @@ confirmaciones del plugin y refresco del reloj sintético en EXCEL_EXPORT.md.
 - Integridad: una tarea no acepta entregas de otra matrícula/grupo.
 - Exportación: datos, orden de columnas, múltiples hojas, acentos, fechas, cero registros y entradas que parecen fórmulas.
 - Restauración: archivo correcto, corrupto, versión incompatible, cancelación, reemplazo y fallo a mitad.
-- Migración: abrir datos de schema v1 desde versión futura conservando relaciones.
+- Migración histórica: no aplicable actualmente (solo schema v1); ejecutar desde una versión publicada previa poblada cuando exista una migración real, conservando relaciones.
 
 ## Pruebas manuales Windows (release gate)
 - [ ] Instalar en equipo Windows 11 sin internet disponible durante primer inicio una vez cumplidos prerequisitos del instalador.

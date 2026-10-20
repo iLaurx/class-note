@@ -33,9 +33,15 @@ import {
 
 const exec = promisify(execFile);
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const exe = path.join(root, 'src-tauri/target/release/classnote.exe');
+// Allow release packaging checks to exercise the installed binary with the same
+// isolated profile and assertions, without changing the production application.
+const exe = process.env.CN_NATIVE_EXE
+  ? path.resolve(process.env.CN_NATIVE_EXE)
+  : path.join(root, 'src-tauri/target/release/classnote.exe');
 await access(exe);
-const output = path.join(root, 'test-results/native');
+const output = process.env.CN_NATIVE_OUTPUT
+  ? path.resolve(process.env.CN_NATIVE_OUTPUT)
+  : path.join(root, 'test-results/native');
 await mkdir(output, { recursive: true });
 const profile = await mkdtemp(path.join(output, 'webview2-'));
 const backupFile = path.join(output, `respaldo-${path.basename(profile)}.json`);

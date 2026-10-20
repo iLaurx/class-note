@@ -29,7 +29,7 @@
 ## Decisiones pendientes
 - Nombre y ubicación final del perfil persistente WebView2 (pruebas por instalador/actualización).
 - Recuperación ante corte eléctrico y fallos de disco (CN-013); restauración transaccional: ADR-015.
-- Licencia MIT vs otra, antes de publicar.
+- Licencia MIT elegida para v0.1.0: ADR-016.
 - Políticas exactas de métricas de asistencia y faltas justificadas.
 - Experiencia de desinstalación y preservación de datos.
 
@@ -132,3 +132,20 @@
   introduce una restricción de orden entre createdAt y updatedAt: una corrección
   del reloj local puede producir modificación anterior a creación; el modelo de
   escritura actual tampoco impone monotonicidad.
+
+## ADR-016 — Licencia y distribución local v0.1.0 (CN-014)
+
+**Estado:** aceptada por decisión explícita del usuario el 20/10/2026.
+
+- Licencia MIT, titular `ClassNote contributors`; texto estándar en `LICENSE`.
+  La licencia se muestra en NSIS y se distribuye con las guías en la instalación.
+  No cambia las licencias de las dependencias de terceros.
+- Se conserva producto 0.1.0, `org.classnote.desktop`, origen, perfil WebView2
+  predeterminado, Dexie v1, permisos y CSP. Solo se añaden metadatos y recursos
+  documentales del bundle, sin dependencias nuevas.
+- NSIS x64 por usuario, idioma español, sin firma ni publicación. WebView2 no se
+  incluye ni descarga (`skip`): debe estar disponible antes de ejecutar ClassNote.
+- CN-013 se considera completada por instrucción del usuario. Se conserva intacta
+  su matriz histórica y evidencia, incluidos los casos no ejecutados; esa decisión
+  no convierte sus pendientes técnicos en pruebas aprobadas de CN-014.
+- Procedimiento, aceptación y límites de distribución: [RELEASE_0.1.0.md](docs/RELEASE_0.1.0.md).

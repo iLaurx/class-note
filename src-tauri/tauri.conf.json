@@ -29,6 +29,15 @@
   },
   "bundle": {
     "active": true,
+    "license": "MIT",
+    "licenseFile": "../LICENSE",
+    "copyright": "Copyright (c) 2026 ClassNote contributors",
+    "resources": {
+      "../LICENSE": "LICENSE",
+      "../docs/INSTALLATION.md": "docs/INSTALLATION.md",
+      "../docs/PRIVACY.md": "docs/PRIVACY.md",
+      "../docs/RELEASE_0.1.0.md": "docs/RELEASE_0.1.0.md"
+    },
     "targets": ["nsis"],
     "icon": ["icons/icon.ico", "icons/icon.png"],
     "shortDescription": "Agenda escolar sin conexión",
